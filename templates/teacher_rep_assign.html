@@ -1,0 +1,175 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>👨‍🎓 指派课代表 - 作业管理平台</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Arial, sans-serif;
+            background: #f0f2f5;
+            padding: 20px;
+        }
+        .container { max-width: 900px; margin: 0 auto; }
+
+        .header {
+            background: white;
+            padding: 20px 30px;
+            border-radius: 12px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.06);
+            margin-bottom: 20px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            flex-wrap: wrap;
+        }
+        .header h1 { font-size: 24px; color: #2d3748; }
+
+        .btn {
+            padding: 8px 18px;
+            border: none;
+            border-radius: 8px;
+            font-size: 14px;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all 0.3s;
+            color: white;
+            text-decoration: none;
+            display: inline-block;
+        }
+        .btn:hover { transform: translateY(-2px); box-shadow: 0 4px 15px rgba(0,0,0,0.15); }
+        .btn-blue { background: #667eea; }
+        .btn-green { background: #48bb78; }
+        .btn-red { background: #fc8181; }
+        .btn-gray { background: #a0aec0; }
+        .btn-purple { background: #9f7aea; }
+        .btn-orange { background: #ed8936; }
+        .btn-sm { padding: 4px 12px; font-size: 12px; }
+
+        .card {
+            background: white;
+            border-radius: 12px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.06);
+            padding: 20px;
+            margin-bottom: 20px;
+        }
+        .card h3 { font-size: 16px; color: #2d3748; margin-bottom: 12px; }
+
+        .form-row {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+            gap: 12px;
+            align-items: end;
+        }
+        .form-group { display: flex; flex-direction: column; gap: 4px; }
+        .form-group label { font-size: 13px; font-weight: 500; color: #4a5568; }
+        .form-group input, .form-group select {
+            padding: 8px 12px;
+            border: 2px solid #e2e8f0;
+            border-radius: 8px;
+            font-size: 14px;
+            transition: border-color 0.2s;
+        }
+        .form-group input:focus, .form-group select:focus {
+            outline: none;
+            border-color: #667eea;
+        }
+
+        .flash-messages { margin-bottom: 16px; }
+        .flash {
+            padding: 10px 18px;
+            border-radius: 8px;
+            margin-bottom: 8px;
+            font-weight: 500;
+            font-size: 14px;
+        }
+        .flash-success { background: #c6f6d5; color: #276749; border-left: 4px solid #48bb78; }
+        .flash-error { background: #fed7d7; color: #9b2c2c; border-left: 4px solid #fc8181; }
+        .flash-info { background: #bee3f8; color: #2a69ac; border-left: 4px solid #667eea; }
+
+        .assign-tag {
+            background: #f7fafc;
+            padding: 4px 12px;
+            border-radius: 8px;
+            display: inline-block;
+            margin: 4px;
+            font-size: 13px;
+        }
+        .assign-tag .remove {
+            color: #fc8181;
+            text-decoration: none;
+            margin-left: 6px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <div>
+                <h1>👨‍🎓 指派课代表</h1>
+                <span style="font-size:14px; color:#888;">选择班级和科目，指派学生为课代表</span>
+            </div>
+            <div class="actions">
+                <a href="/page" class="btn btn-blue">🏠 首页</a>
+                <a href="/logout" class="btn btn-gray">🚪 退出</a>
+            </div>
+        </div>
+
+        {% with messages = get_flashed_messages(with_categories=true) %}
+            {% if messages %}
+                <div class="flash-messages">
+                    {% for category, message in messages %}
+                        <div class="flash flash-{{ category }}">{{ message }}</div>
+                    {% endfor %}
+                </div>
+            {% endif %}
+        {% endwith %}
+
+        <div class="card">
+            <h3>📋 指派课代表</h3>
+            <form method="POST" action="/teacher/rep/assign">
+                <div class="form-row">
+                    <div class="form-group">
+                        <label>班级 + 科目</label>
+                        <select name="assignment_id" required>
+                            <option value="">选择...</option>
+                            {% for ta in teacher_assignments %}
+                                <option value="{{ ta.id }}">{{ ta.class_name }} → {{ ta.subject_name }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label>课代表（学生）</label>
+                        <select name="rep_id" required>
+                            <option value="">选择...</option>
+                            {% for s in students %}
+                                <option value="{{ s.id }}">{{ s.name }} ({{ s.username }})</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <button type="submit" class="btn btn-purple">指派课代表</button>
+                    </div>
+                </div>
+            </form>
+        </div>
+
+        <!-- 已指派列表 -->
+        <div class="card">
+            <h3>✅ 已指派的课代表</h3>
+            {% if teacher_assignments %}
+                {% for ta in teacher_assignments %}
+                    <span class="assign-tag">
+                        {{ ta.class_name }} ({{ ta.subject_name }}) →
+                        <strong>{{ ta.teacher_name }}</strong>
+                        <a href="/admin/rep/remove/{{ ta.id }}" class="remove" onclick="return confirm('确定移除？')">×</a>
+                    </span>
+                {% endfor %}
+            {% else %}
+                <div style="color:#888; font-size:14px; padding:10px 0;">暂未指派课代表</div>
+            {% endif %}
+        </div>
+    </div>
+</body>
+</html>

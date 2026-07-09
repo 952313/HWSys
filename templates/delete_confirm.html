@@ -1,0 +1,144 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>🗑️ 删除作业 - 作业管理平台</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Arial, sans-serif;
+            background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+        }
+        .container {
+            background: white;
+            padding: 35px;
+            border-radius: 16px;
+            max-width: 500px;
+            width: 100%;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.15);
+        }
+        h2 {
+            color: #e53e3e;
+            margin-bottom: 8px;
+        }
+        .assignment-info {
+            background: #f7fafc;
+            padding: 15px;
+            border-radius: 8px;
+            margin: 15px 0;
+        }
+        .assignment-info .title {
+            font-size: 18px;
+            font-weight: 600;
+        }
+        .assignment-info .meta {
+            color: #888;
+            font-size: 13px;
+            margin-top: 4px;
+        }
+        .form-group {
+            margin-bottom: 16px;
+        }
+        .form-group label {
+            display: block;
+            font-weight: 500;
+            color: #4a5568;
+            margin-bottom: 4px;
+            font-size: 14px;
+        }
+        .form-group select,
+        .form-group input {
+            width: 100%;
+            padding: 10px 14px;
+            border: 2px solid #e2e8f0;
+            border-radius: 8px;
+            font-size: 14px;
+            font-family: inherit;
+        }
+        .form-group select:focus,
+        .form-group input:focus {
+            outline: none;
+            border-color: #fc8181;
+        }
+        .actions {
+            display: flex;
+            gap: 10px;
+            justify-content: flex-end;
+            margin-top: 20px;
+        }
+        .btn {
+            padding: 10px 24px;
+            border: none;
+            border-radius: 8px;
+            font-size: 14px;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all 0.3s;
+            color: white;
+            text-decoration: none;
+        }
+        .btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 15px rgba(0,0,0,0.15);
+        }
+        .btn-gray { background: #a0aec0; }
+        .btn-red { background: #fc8181; }
+        .btn-red:hover { background: #f56565; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h2>🗑️ 删除作业</h2>
+        <p style="color:#718096; margin-bottom:15px;">确定要删除这个作业吗？请选择删除理由：</p>
+
+        <div class="assignment-info">
+            <div class="title">#{{ assignment.id }} {{ assignment.title }}</div>
+            <div class="meta">
+                📅 创建: {{ assignment.created_at|format_timestamp }}
+                <br>
+                ⏰ 截止: {{ assignment.due_date|format_date }}
+            </div>
+        </div>
+
+        <form method="POST">
+            <div class="form-group">
+                <label>删除理由</label>
+                <select name="reason" id="reasonSelect" onchange="toggleCustom()">
+                    <option value="">请选择删除理由...</option>
+                    {% for reason in delete_reasons %}
+                        <option value="{{ reason }}">{{ reason }}</option>
+                    {% endfor %}
+                    <option value="自定义理由">✏️ 自定义理由...</option>
+                </select>
+            </div>
+            <div class="form-group" id="customGroup" style="display:none;">
+                <label>自定义理由</label>
+                <input type="text" name="custom_reason" placeholder="请输入删除理由...">
+            </div>
+
+            <div class="actions">
+                <a href="/page" class="btn btn-gray">取消</a>
+                <button type="submit" class="btn btn-red">🗑️ 确认删除</button>
+            </div>
+        </form>
+    </div>
+
+    <script>
+        function toggleCustom() {
+            var select = document.getElementById('reasonSelect');
+            var customGroup = document.getElementById('customGroup');
+            if (select.value === '自定义理由') {
+                customGroup.style.display = 'block';
+            } else {
+                customGroup.style.display = 'none';
+            }
+        }
+    </script>
+</body>
+</html>

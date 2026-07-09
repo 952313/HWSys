@@ -1,0 +1,331 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>👥 用户管理 - 作业管理平台</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Arial, sans-serif;
+            background: #f0f2f5;
+            padding: 20px;
+        }
+        .container { max-width: 1200px; margin: 0 auto; }
+
+        .header {
+            background: white;
+            padding: 20px 30px;
+            border-radius: 12px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.06);
+            margin-bottom: 20px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            flex-wrap: wrap;
+        }
+        .header h1 { font-size: 24px; color: #2d3748; }
+        .header .actions { display: flex; gap: 10px; flex-wrap: wrap; }
+
+        .btn {
+            padding: 8px 18px;
+            border: none;
+            border-radius: 8px;
+            font-size: 14px;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all 0.3s;
+            color: white;
+            text-decoration: none;
+            display: inline-block;
+        }
+        .btn:hover { transform: translateY(-2px); box-shadow: 0 4px 15px rgba(0,0,0,0.15); }
+        .btn-blue { background: #667eea; }
+        .btn-green { background: #48bb78; }
+        .btn-red { background: #fc8181; }
+        .btn-gray { background: #a0aec0; }
+        .btn-orange { background: #ed8936; }
+        .btn-sm { padding: 4px 12px; font-size: 12px; }
+
+        .card {
+            background: white;
+            border-radius: 12px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.06);
+            padding: 20px;
+            margin-bottom: 20px;
+        }
+        .card .sub { font-size: 13px; color: #888; margin-bottom: 12px; }
+
+        .toolbar {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 12px;
+            margin-bottom: 16px;
+            align-items: center;
+        }
+        .toolbar form { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; }
+        .toolbar input, .toolbar select {
+            padding: 8px 12px;
+            border: 2px solid #e2e8f0;
+            border-radius: 8px;
+            font-size: 14px;
+        }
+        .toolbar input:focus, .toolbar select:focus {
+            outline: none;
+            border-color: #667eea;
+        }
+
+        table { width: 100%; border-collapse: collapse; font-size: 14px; }
+        th { text-align: left; padding: 10px 12px; border-bottom: 2px solid #e2e8f0; color: #4a5568; }
+        td { padding: 10px 12px; border-bottom: 1px solid #f0f0f0; }
+        tr:hover td { background: #f7fafc; }
+        th input[type="checkbox"], td input[type="checkbox"] {
+            width: 16px;
+            height: 16px;
+            cursor: pointer;
+        }
+
+        .badge {
+            padding: 2px 10px;
+            border-radius: 12px;
+            font-size: 11px;
+            font-weight: 500;
+        }
+        .badge-admin { background: #fed7d7; color: #9b2c2c; }
+        .badge-technician { background: #bee3f8; color: #2a69ac; }
+        .badge-teacher { background: #fefcbf; color: #975a16; }
+        .badge-rep { background: #c6f6d5; color: #276749; }
+        .badge-student { background: #e2e8f0; color: #4a5568; }
+
+        .pagination {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            flex-wrap: wrap;
+            gap: 10px;
+            margin-top: 16px;
+        }
+        .pagination .info { font-size: 14px; color: #888; }
+        .pagination .pages { display: flex; gap: 5px; flex-wrap: wrap; }
+        .pagination .page-btn {
+            padding: 6px 14px;
+            border: 2px solid #e2e8f0;
+            border-radius: 6px;
+            background: white;
+            cursor: pointer;
+            text-decoration: none;
+            color: #4a5568;
+            font-size: 14px;
+            transition: all 0.2s;
+        }
+        .pagination .page-btn:hover { background: #f7fafc; border-color: #667eea; }
+        .pagination .page-btn.active {
+            background: #667eea;
+            color: white;
+            border-color: #667eea;
+        }
+        .pagination .page-btn.disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+
+        .flash-messages { margin-bottom: 16px; }
+        .flash {
+            padding: 10px 18px;
+            border-radius: 8px;
+            margin-bottom: 8px;
+            font-weight: 500;
+            font-size: 14px;
+        }
+        .flash-success { background: #c6f6d5; color: #276749; border-left: 4px solid #48bb78; }
+        .flash-error { background: #fed7d7; color: #9b2c2c; border-left: 4px solid #fc8181; }
+        .flash-info { background: #bee3f8; color: #2a69ac; border-left: 4px solid #667eea; }
+
+        .class-tags {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 4px;
+        }
+        .class-tag {
+            background: #e2e8f0;
+            padding: 1px 8px;
+            border-radius: 10px;
+            font-size: 11px;
+            color: #4a5568;
+        }
+        .class-tag.primary { background: #667eea; color: white; }
+
+        @media (max-width: 640px) {
+            table { font-size: 12px; }
+            td, th { padding: 6px 8px; }
+            .pagination { flex-direction: column; }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <div>
+                <h1>👥 用户管理</h1>
+                <span style="font-size:14px; color:#888;">共 {{ total }} 个用户</span>
+            </div>
+            <div class="actions">
+                <a href="/admin" class="btn btn-blue">⚙️ 管理后台</a>
+                <a href="/admin" class="btn btn-gray">🏠 首页</a>
+                <a href="/logout" class="btn btn-gray">🚪 退出</a>
+            </div>
+        </div>
+
+        {% with messages = get_flashed_messages(with_categories=true) %}
+            {% if messages %}
+                <div class="flash-messages">
+                    {% for category, message in messages %}
+                        <div class="flash flash-{{ category }}">{{ message }}</div>
+                    {% endfor %}
+                </div>
+            {% endif %}
+        {% endwith %}
+
+        <div class="card">
+            <!-- 工具栏 -->
+            <div class="toolbar">
+                <form method="GET" action="/admin/users" style="flex:1;">
+                    <input type="text" name="search" placeholder="🔍 搜索学号/姓名..." value="{{ search }}">
+                    <button type="submit" class="btn btn-blue btn-sm">搜索</button>
+                    {% if search %}
+                        <a href="/admin/users" class="btn btn-gray btn-sm">清除</a>
+                    {% endif %}
+                </form>
+
+                <form method="POST" action="/admin/users/batch_delete" onsubmit="return confirm('确定要删除选中的用户吗？此操作不可恢复！');">
+                    <select name="class_id" style="padding:8px 12px; border:2px solid #e2e8f0; border-radius:8px;">
+                        <option value="">按班级删除...</option>
+                        {% for c in classes %}
+                            <option value="{{ c.id }}">{{ c.name }}</option>
+                        {% endfor %}
+                    </select>
+                    <button type="submit" class="btn btn-red btn-sm">🗑️ 删除班级</button>
+                </form>
+            </div>
+
+            <!-- 批量操作 -->
+            <form method="POST" action="/admin/users/batch_update_classes" id="batchForm">
+                <div style="margin-bottom:12px; display:flex; flex-wrap:wrap; gap:10px; align-items:center;">
+                    <button type="button" class="btn btn-gray btn-sm" onclick="toggleAll()">☑️ 全选</button>
+                    <span style="font-size:13px; color:#888;">已选: <span id="selectedCount">0</span> 个</span>
+                    <span style="color:#888; margin-left:10px;">批量操作：</span>
+                    <select name="action" style="padding:6px 12px; border:2px solid #e2e8f0; border-radius:8px; font-size:13px;">
+                        <option value="add">➕ 添加班级</option>
+                        <option value="remove">➖ 移除班级</option>
+                        <option value="set">📌 设为唯一班级</option>
+                    </select>
+                    <select name="class_id" style="padding:6px 12px; border:2px solid #e2e8f0; border-radius:8px; font-size:13px;">
+                        <option value="">选择班级...</option>
+                        {% for c in classes %}
+                            <option value="{{ c.id }}">{{ c.name }}</option>
+                        {% endfor %}
+                    </select>
+                    <button type="submit" class="btn btn-blue btn-sm">执行</button>
+                </div>
+
+                <table>
+                    <thead>
+                        <tr>
+                            <th><input type="checkbox" id="selectAll" onchange="toggleAll()"></th>
+                            <th>ID</th>
+                            <th>总学号</th>
+                            <th>姓名</th>
+                            <th>角色</th>
+                            <th>班级</th>
+                            <th>操作</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for u in users %}
+                            <tr>
+                                <td>
+                                    {% if u.id != session.user_id %}
+                                        <input type="checkbox" name="user_ids" value="{{ u.id }}" class="user-checkbox" onchange="updateCount()">
+                                    {% endif %}
+                                </td>
+                                <td>{{ u.id }}</td>
+                                <td><strong>{{ u.username }}</strong></td>
+                                <td>{{ u.name }}</td>
+                                <td><span class="badge badge-{{ u.role }}">{{ u.role }}</span></td>
+                                <td>
+                                    <div class="class-tags">
+                                        {% for uc in u.classes %}
+                                            <span class="class-tag {% if uc.is_primary %}primary{% endif %}">
+                                                {{ class_map.get(uc.class_id, '未知') }}
+                                                {% if uc.class_number %}(#{{ uc.class_number }}){% endif %}
+                                            </span>
+                                        {% endfor %}
+                                    </div>
+                                </td>
+                                <td>
+                                    <a href="/admin/user/reset_password/{{ u.id }}" class="btn btn-orange btn-sm">重置</a>
+                                    {% if u.id != session.user_id %}
+                                        <a href="/admin/user/delete/{{ u.id }}" class="btn btn-red btn-sm" onclick="return confirm('确定删除 {{ u.username }} 吗？')">删除</a>
+                                    {% else %}
+                                        <span style="color:#888; font-size:12px;">（自己）</span>
+                                    {% endif %}
+                                </td>
+                            </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </form>
+
+            <!-- 分页 -->
+            <div class="pagination">
+                <div class="info">
+                    显示 {{ users|length }} / 共 {{ total }} 个用户
+                    {% if search %} · 搜索: "{{ search }}"{% endif %}
+                </div>
+                <div class="pages">
+                    {% if page > 1 %}
+                        <a href="/admin/users?page=1{% if search %}&search={{ search }}{% endif %}" class="page-btn">⏮</a>
+                        <a href="/admin/users?page={{ page-1 }}{% if search %}&search={{ search }}{% endif %}" class="page-btn">◀</a>
+                    {% else %}
+                        <span class="page-btn disabled">⏮</span>
+                        <span class="page-btn disabled">◀</span>
+                    {% endif %}
+
+                    {% for p in range(1, total_pages + 1) %}
+                        {% if p == page %}
+                            <span class="page-btn active">{{ p }}</span>
+                        {% elif p <= 5 or p > total_pages - 2 or p >= page - 2 and p <= page + 2 %}
+                            <a href="/admin/users?page={{ p }}{% if search %}&search={{ search }}{% endif %}" class="page-btn">{{ p }}</a>
+                        {% elif p == page - 3 or p == page + 3 %}
+                            <span class="page-btn disabled">…</span>
+                        {% endif %}
+                    {% endfor %}
+
+                    {% if page < total_pages %}
+                        <a href="/admin/users?page={{ page+1 }}{% if search %}&search={{ search }}{% endif %}" class="page-btn">▶</a>
+                        <a href="/admin/users?page={{ total_pages }}{% if search %}&search={{ search }}{% endif %}" class="page-btn">⏭</a>
+                    {% else %}
+                        <span class="page-btn disabled">▶</span>
+                        <span class="page-btn disabled">⏭</span>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        function toggleAll() {
+            const selectAll = document.getElementById('selectAll');
+            const checkboxes = document.querySelectorAll('.user-checkbox');
+            checkboxes.forEach(cb => cb.checked = selectAll.checked);
+            updateCount();
+        }
+
+        function updateCount() {
+            const checkboxes = document.querySelectorAll('.user-checkbox:checked');
+            document.getElementById('selectedCount').textContent = checkboxes.length;
+        }
+        updateCount();
+    </script>
+</body>
+</html>

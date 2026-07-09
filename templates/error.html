@@ -1,0 +1,149 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% if error_code %}{{ error_code }}{% else %}错误{% endif %} - 作业管理平台</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Arial, sans-serif;
+            background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+        }
+        .error-container {
+            background: white;
+            border-radius: 20px;
+            padding: 50px 45px;
+            max-width: 520px;
+            width: 100%;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.12);
+            text-align: center;
+        }
+        .error-icon { font-size: 72px; margin-bottom: 12px; display: block; }
+        .error-code {
+            font-size: 64px;
+            font-weight: 800;
+            color: #2d3748;
+            letter-spacing: 2px;
+            line-height: 1;
+            margin-bottom: 4px;
+        }
+        .error-code .highlight-4 { color: #fc8181; }
+        .error-code .highlight-5 { color: #ed8936; }
+        .error-title { font-size: 22px; font-weight: 600; color: #2d3748; margin-bottom: 8px; }
+        .error-description { color: #718096; font-size: 15px; line-height: 1.6; margin-bottom: 20px; }
+        .error-actions { display: flex; flex-wrap: wrap; gap: 10px; justify-content: center; margin-bottom: 16px; }
+        .btn {
+            padding: 10px 28px;
+            border: none;
+            border-radius: 10px;
+            font-size: 14px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s;
+            color: white;
+            text-decoration: none;
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+        }
+        .btn:hover { transform: translateY(-2px); box-shadow: 0 4px 20px rgba(0,0,0,0.15); }
+        .btn-primary { background: #667eea; }
+        .btn-primary:hover { background: #5a67d8; }
+        .btn-logout { background: #fc8181; }
+        .btn-logout:hover { background: #f56565; }
+        .help-links { display: flex; flex-wrap: wrap; gap: 14px; justify-content: center; font-size: 13px; }
+        .help-links a { color: #a0aec0; text-decoration: none; transition: color 0.2s; }
+        .help-links a:hover { color: #667eea; }
+        .help-links .divider { color: #e2e8f0; user-select: none; }
+        .error-footer {
+            margin-top: 20px;
+            padding-top: 16px;
+            border-top: 1px solid #e2e8f0;
+            font-size: 12px;
+            color: #a0aec0;
+        }
+        @media (max-width: 480px) {
+            .error-container { padding: 30px 20px; }
+            .error-code { font-size: 44px; }
+            .error-icon { font-size: 52px; }
+            .error-title { font-size: 18px; }
+            .btn { padding: 8px 18px; font-size: 13px; width: 100%; justify-content: center; }
+            .error-actions { flex-direction: column; }
+        }
+    </style>
+</head>
+<body>
+    <div class="error-container">
+        <span class="error-icon">
+            {% if error_code == 404 %}🔍
+            {% elif error_code == 429 %}⏳
+            {% elif error_code == 500 %}💥
+            {% elif error_code == 502 %}🌐
+            {% elif error_code == 503 %}🔧
+            {% else %}⚠️
+            {% endif %}
+        </span>
+        <div class="error-code">
+            {% if error_code == 404 %}
+                <span class="highlight-4">4</span><span class="highlight-4">0</span><span class="highlight-4">4</span>
+            {% elif error_code == 429 %}
+                <span class="highlight-4">4</span><span class="highlight-4">2</span><span class="highlight-4">9</span>
+            {% elif error_code == 500 %}
+                <span class="highlight-5">5</span><span class="highlight-5">0</span><span class="highlight-5">0</span>
+            {% elif error_code == 502 %}
+                <span class="highlight-5">5</span><span class="highlight-5">0</span><span class="highlight-5">2</span>
+            {% elif error_code == 503 %}
+                <span class="highlight-5">5</span><span class="highlight-5">0</span><span class="highlight-5">3</span>
+            {% else %}
+                <span class="highlight-4">?</span>
+            {% endif %}
+        </div>
+        <div class="error-title">
+            {% if error_code == 404 %}页面不见了 😅
+            {% elif error_code == 429 %}操作太频繁了 ⏳
+            {% elif error_code == 500 %}服务器出了点小问题 💥
+            {% elif error_code == 502 %}网关连接失败 🌐
+            {% elif error_code == 503 %}服务暂时不可用 🔧
+            {% else %}出了点小问题
+            {% endif %}
+        </div>
+        <div class="error-description">
+            {% if error_code == 404 %}
+                您访问的页面不存在，可能是链接有误或内容已被移除。
+            {% elif error_code == 429 %}
+                您操作太频繁了，请稍等片刻再试。
+            {% elif error_code == 500 %}
+                服务器内部发生错误，技术员已经收到通知。
+            {% elif error_code == 502 %}
+                网关或代理服务器收到无效响应，请稍后重试。
+            {% elif error_code == 503 %}
+                服务器正在维护或过载，请稍后再试。
+            {% else %}
+                {{ error_message or '发生了未知错误，请稍后重试。' }}
+            {% endif %}
+        </div>
+        <div class="error-actions">
+            {% if user_logged_in %}
+                <a href="{{ home_url or '/page' }}" class="btn btn-primary">🏠 返回{{ home_label or '首页' }}</a>
+                <a href="/logout" class="btn btn-logout">🚪 登出</a>
+            {% else %}
+                <a href="/" class="btn btn-primary">🏠 返回登录页面</a>
+            {% endif %}
+        </div>
+        <div class="help-links">
+            <a href="javascript:location.reload()">🔄 刷新重试</a>
+            <span class="divider">|</span>
+            <a href="/">📚 首页</a>
+        </div>
+        <div class="error-footer">
+            📚 作业管理平台 · {% if error_code %}HTTP {{ error_code }}{% else %}错误页面{% endif %}
+        </div>
+    </div>
+</body>
+</html>

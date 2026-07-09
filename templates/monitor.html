@@ -1,0 +1,359 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>🔧 系统监控 - 作业管理平台</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Arial, sans-serif;
+            background: #f0f2f5;
+            padding: 20px;
+        }
+        .container { max-width: 1200px; margin: 0 auto; }
+
+        .header {
+            background: linear-gradient(135deg, #2d3748 0%, #1a202c 100%);
+            color: white;
+            padding: 20px 30px;
+            border-radius: 12px;
+            margin-bottom: 20px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            flex-wrap: wrap;
+        }
+        .header h1 { font-size: 22px; }
+        .header .time { font-size: 13px; opacity: 0.7; }
+        .header .time a { color: white; opacity: 0.6; margin-left: 15px; text-decoration: none; }
+        .header .time a:hover { opacity: 1; }
+
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+            gap: 16px;
+            margin-bottom: 20px;
+        }
+        .stat-card {
+            background: white;
+            padding: 16px 20px;
+            border-radius: 12px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.06);
+            transition: transform 0.2s;
+        }
+        .stat-card:hover { transform: translateY(-3px); }
+        .stat-card .number {
+            font-size: 28px;
+            font-weight: 700;
+            color: #2d3748;
+        }
+        .stat-card .number.green { color: #48bb78; }
+        .stat-card .number.red { color: #fc8181; }
+        .stat-card .number.blue { color: #667eea; }
+        .stat-card .number.orange { color: #ed8936; }
+        .stat-card .label { color: #888; font-size: 13px; margin-top: 4px; }
+        .stat-card .sub { color: #aaa; font-size: 12px; margin-top: 2px; }
+
+        .two-col {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 20px;
+            margin-bottom: 20px;
+        }
+        @media (max-width: 768px) { .two-col { grid-template-columns: 1fr; } }
+
+        .card {
+            background: white;
+            border-radius: 12px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.06);
+            overflow: hidden;
+        }
+        .card-header {
+            padding: 12px 18px;
+            border-bottom: 1px solid #e2e8f0;
+            font-weight: 600;
+            font-size: 14px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        .card-body { padding: 12px 18px; max-height: 300px; overflow-y: auto; }
+
+        .log-item {
+            padding: 8px 0;
+            border-bottom: 1px solid #f7fafc;
+            font-size: 13px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            gap: 10px;
+        }
+        .log-item:last-child { border-bottom: none; }
+
+        .badge {
+            padding: 2px 10px;
+            border-radius: 12px;
+            font-size: 11px;
+            font-weight: 500;
+            white-space: nowrap;
+        }
+        .badge-red { background: #fed7d7; color: #9b2c2c; }
+        .badge-green { background: #c6f6d5; color: #276749; }
+        .badge-yellow { background: #fefcbf; color: #975a16; }
+        .badge-blue { background: #bee3f8; color: #2a69ac; }
+        .badge-gray { background: #e2e8f0; color: #4a5568; }
+
+        .btn {
+            padding: 4px 12px;
+            border: none;
+            border-radius: 6px;
+            font-size: 11px;
+            cursor: pointer;
+            color: white;
+            background: #667eea;
+            transition: all 0.2s;
+            text-decoration: none;
+            display: inline-block;
+        }
+        .btn:hover { opacity: 0.8; }
+        .btn-green { background: #48bb78; }
+        .btn-red { background: #fc8181; }
+        .btn-gray { background: #a0aec0; }
+
+        .empty-state {
+            text-align: center;
+            padding: 25px;
+            color: #a0aec0;
+            font-size: 14px;
+        }
+
+        .action-bar {
+            display: flex;
+            gap: 10px;
+            flex-wrap: wrap;
+            margin-bottom: 16px;
+        }
+        .refresh-btn {
+            background: #e2e8f0;
+            border: none;
+            padding: 6px 16px;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 13px;
+            transition: all 0.2s;
+        }
+        .refresh-btn:hover { background: #cbd5e0; }
+
+        .flash-messages { margin-bottom: 16px; }
+        .flash {
+            padding: 10px 18px;
+            border-radius: 8px;
+            margin-bottom: 8px;
+            font-weight: 500;
+            font-size: 14px;
+        }
+        .flash-success { background: #c6f6d5; color: #276749; border-left: 4px solid #48bb78; }
+        .flash-error { background: #fed7d7; color: #9b2c2c; border-left: 4px solid #fc8181; }
+        .flash-info { background: #bee3f8; color: #2a69ac; border-left: 4px solid #667eea; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <div>
+                <h1>🔧 系统监控</h1>
+                <span style="font-size:13px; opacity:0.8;">技术员面板</span>
+            </div>
+            <div class="time">
+                🕐 {{ now }}
+                {% if session.role == 'admin' %}
+                <a href="/admin">🏠 首页</a>
+                {% else %}
+                    {% if session.role == 'admin' %}
+                    <a href="/admin">⚙️ 管理后台</a>
+                    {% endif %}
+                    <!-- 技术员不显示首页按钮，因为已经在监控面板 -->
+                {% endif %}
+                <a href="/logout">退出</a>
+            </div>
+        </div>
+
+        {% with messages = get_flashed_messages(with_categories=true) %}
+            {% if messages %}
+                <div class="flash-messages">
+                    {% for category, message in messages %}
+                        <div class="flash flash-{{ category }}">{{ message }}</div>
+                    {% endfor %}
+                </div>
+            {% endif %}
+        {% endwith %}
+
+        <!-- 统计卡片 -->
+        <div class="stats-grid">
+            <div class="stat-card">
+                <div class="number blue">{{ stats.total_visits or 0 }}</div>
+                <div class="label">📊 今日访问</div>
+                <div class="sub">较昨日 {{ stats.visits_change or 0 }}%</div>
+            </div>
+            <div class="stat-card">
+                <div class="number green">{{ stats.total_operations or 0 }}</div>
+                <div class="label">⚡ 今日操作</div>
+                <div class="sub">创建/完成/删除等</div>
+            </div>
+            <div class="stat-card">
+                <div class="number red">{{ stats.total_errors or 0 }}</div>
+                <div class="label">❌ 今日异常</div>
+                <div class="sub">需要关注</div>
+            </div>
+            <div class="stat-card">
+                <div class="number orange">{{ stats.avg_response_ms or 0 }}ms</div>
+                <div class="label">⏱️ 平均响应</div>
+                <div class="sub">良好 &lt; 200ms</div>
+            </div>
+        </div>
+
+        <div class="action-bar">
+            <button class="refresh-btn" onclick="location.reload()">🔄 刷新</button>
+            <a href="/admin" class="btn btn-gray" style="padding:6px 16px; font-size:13px;">⚙️ 管理后台</a>
+        </div>
+
+        <!-- 两栏 -->
+        <div class="two-col">
+            <div class="card">
+                <div class="card-header">
+                    📋 操作类型统计
+                    <span class="badge badge-blue">今日</span>
+                </div>
+                <div class="card-body">
+                    {% if op_stats %}
+                        {% for stat in op_stats %}
+                            <div class="log-item">
+                                <span>
+                                    <strong>{{ stat.action }}</strong>
+                                    <span class="badge {% if stat.error_count > 0 %}badge-red{% else %}badge-green{% endif %}">
+                                        {{ stat.count }}
+                                    </span>
+                                </span>
+                                <span style="color:#888; font-size:12px;">
+                                    {{ stat.avg_duration|round(0) }}ms
+                                    {% if stat.error_count > 0 %}
+                                        <span class="badge badge-red">⚠️ {{ stat.error_count }}</span>
+                                    {% endif %}
+                                </span>
+                            </div>
+                        {% endfor %}
+                    {% else %}
+                        <div class="empty-state">暂无操作记录</div>
+                    {% endif %}
+                </div>
+            </div>
+
+            <div class="card">
+                <div class="card-header">
+                    🔥 最近异常
+                    <span class="badge badge-red">{{ errors|length }}</span>
+                </div>
+                <div class="card-body">
+                    {% if errors %}
+                        {% for err in errors %}
+                            <div class="log-item">
+                                <div style="flex:1; min-width:0;">
+                                    <span class="badge badge-red">{{ err.error_type }}</span>
+                                    <span style="font-size:12px; color:#333;">{{ err.error_message[:40] }}{% if err.error_message|length > 40 %}...{% endif %}</span>
+                                    <div style="font-size:10px; color:#888;">{{ err.path }}</div>
+                                </div>
+                                <div style="text-align:right; flex-shrink:0;">
+                                    <div style="font-size:10px; color:#888;">{{ err.created_at|format_timestamp }}</div>
+                                    {% if not err.resolved %}
+                                        <a href="/resolve_error/{{ err.id }}" class="btn btn-green" style="font-size:10px;">已解决</a>
+                                    {% else %}
+                                        <span class="badge badge-green">已解决</span>
+                                    {% endif %}
+                                </div>
+                            </div>
+                        {% endfor %}
+                    {% else %}
+                        <div class="empty-state">🎉 暂无异常</div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+
+        <!-- 最近操作 -->
+        <div class="card">
+            <div class="card-header">
+                📜 最近操作日志
+                <span style="font-size:12px; color:#888;">最新 50 条</span>
+            </div>
+            <div class="card-body" style="max-height: 350px;">
+                {% if operations %}
+                    {% for op in operations %}
+                        <div class="log-item">
+                            <div style="flex:1; min-width:0;">
+                                <span class="badge
+                                    {% if op.status_code >= 500 %}badge-red
+                                    {% elif op.status_code >= 400 %}badge-yellow
+                                    {% else %}badge-blue{% endif %}">
+                                    {{ op.method }} {{ op.status_code }}
+                                </span>
+                                <strong style="font-size:12px;">{{ op.action }}</strong>
+                                <span style="color:#888; font-size:11px;">{{ op.path }}</span>
+                            </div>
+                            <div style="text-align:right; flex-shrink:0;">
+                                <div style="font-size:10px; color:#888;">{{ op.duration_ms }}ms</div>
+                                <div style="font-size:10px; color:#aaa;">{{ op.created_at|format_timestamp }}</div>
+                            </div>
+                        </div>
+                    {% endfor %}
+                {% else %}
+                    <div class="empty-state">暂无操作记录</div>
+                {% endif %}
+            </div>
+        </div>
+
+        <!-- 系统状态 -->
+        <div class="card" style="margin-top:20px;">
+            <div class="card-header">
+                🔧 系统状态
+                <span style="font-size:12px; color:#888;">实时</span>
+            </div>
+            <div class="card-body" id="systemStatus">
+                <div style="display:grid; grid-template-columns:repeat(auto-fit, minmax(150px,1fr)); gap:12px;">
+                    <div>
+                        <div style="font-size:12px; color:#888;">📊 写入队列</div>
+                        <div style="font-size:20px; font-weight:600;" id="queueSize">0 / 0</div>
+                    </div>
+                    <div>
+                        <div style="font-size:12px; color:#888;">🧵 活跃线程</div>
+                        <div style="font-size:20px; font-weight:600;" id="activeThreads">0</div>
+                    </div>
+                    <div>
+                        <div style="font-size:12px; color:#888;">💾 内存使用</div>
+                        <div style="font-size:20px; font-weight:600;" id="memoryUsage">0%</div>
+                    </div>
+                    <div>
+                        <div style="font-size:12px; color:#888;">⏱️ 运行时间</div>
+                        <div style="font-size:20px; font-weight:600;" id="uptime">0s</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    <script>
+        function fetchSystemStatus() {
+            fetch('/api/system/status')
+                .then(res => res.json())
+                .then(data => {
+                    document.getElementById('queueSize').textContent = data.queue.size + ' / ' + data.queue.max;
+                    document.getElementById('activeThreads').textContent = data.threads.active;
+                    document.getElementById('memoryUsage').textContent = data.memory.percent + '%';
+                    document.getElementById('uptime').textContent = data.uptime + 's';
+                })
+                .catch(() => {});
+        }
+        setInterval(fetchSystemStatus, 1000);
+        fetchSystemStatus();
+    </script>
+</body>
+</html>

@@ -1,0 +1,830 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>📚 作业管理平台</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Arial, sans-serif;
+            background: #f5f7fa;
+            padding: 20px;
+        }
+        .container { max-width: 1000px; margin: 0 auto; }
+
+        /* ====== 头部 ====== */
+        .header {
+            background: white;
+            padding: 20px 30px;
+            border-radius: 12px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.06);
+            margin-bottom: 20px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            flex-wrap: wrap;
+        }
+        .header h1 { font-size: 24px; color: #2d3748; }
+        .header .user-info {
+            display: flex;
+            align-items: center;
+            gap: 15px;
+            flex-wrap: wrap;
+        }
+        .badge {
+            padding: 4px 14px;
+            border-radius: 20px;
+            font-size: 12px;
+            font-weight: 500;
+        }
+        .badge-admin { background: #fed7d7; color: #9b2c2c; }
+        .badge-technician { background: #bee3f8; color: #2a69ac; }
+        .badge-teacher { background: #fefcbf; color: #975a16; }
+        .badge-rep { background: #c6f6d5; color: #276749; }
+        .badge-student { background: #e2e8f0; color: #4a5568; }
+
+        /* ====== 过滤栏 ====== */
+        .filter-bar {
+            background: white;
+            padding: 16px 20px;
+            border-radius: 12px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.06);
+            margin-bottom: 16px;
+            display: flex;
+            flex-wrap: wrap;
+            gap: 12px;
+            align-items: center;
+        }
+        .filter-bar .label {
+            font-size: 13px;
+            font-weight: 500;
+            color: #4a5568;
+        }
+        .filter-bar input[type="date"] {
+            padding: 6px 12px;
+            border: 2px solid #e2e8f0;
+            border-radius: 8px;
+            font-size: 14px;
+            font-family: inherit;
+        }
+        .filter-bar input[type="date"]:focus {
+            outline: none;
+            border-color: #667eea;
+        }
+        .filter-bar select {
+            padding: 6px 12px;
+            border: 2px solid #e2e8f0;
+            border-radius: 8px;
+            font-size: 14px;
+            font-family: inherit;
+            background: white;
+        }
+        .filter-bar select:focus {
+            outline: none;
+            border-color: #667eea;
+        }
+        .filter-bar .btn {
+            padding: 6px 16px;
+            border: none;
+            border-radius: 8px;
+            font-size: 13px;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all 0.3s;
+            color: white;
+            text-decoration: none;
+            display: inline-block;
+        }
+        .filter-bar .btn:hover { transform: translateY(-2px); box-shadow: 0 4px 15px rgba(0,0,0,0.15); }
+        .filter-bar .btn-blue { background: #667eea; }
+        .filter-bar .btn-gray { background: #a0aec0; }
+        .filter-bar .btn-orange { background: #ed8936; }
+        .filter-bar .filter-hint {
+            font-size: 13px;
+            color: #888;
+            margin-left: auto;
+        }
+        .filter-bar .filter-hint strong { color: #2d3748; }
+
+        /* ====== 班级切换栏 ====== */
+        .class-switcher {
+            background: white;
+            padding: 12px 20px;
+            border-radius: 12px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.06);
+            margin-bottom: 16px;
+            display: flex;
+            flex-wrap: wrap;
+            gap: 10px;
+            align-items: center;
+        }
+        .class-switcher .label { font-size: 13px; color: #888; font-weight: 500; }
+        .class-btn {
+            padding: 6px 16px;
+            border: 2px solid #e2e8f0;
+            border-radius: 20px;
+            background: white;
+            cursor: pointer;
+            font-size: 13px;
+            text-decoration: none;
+            color: #4a5568;
+            transition: all 0.2s;
+        }
+        .class-btn:hover { background: #f7fafc; border-color: #667eea; }
+        .class-btn.active {
+            background: #667eea;
+            color: white;
+            border-color: #667eea;
+        }
+        .class-btn .count { font-size: 11px; opacity: 0.7; margin-left: 4px; }
+        .class-info {
+            font-size: 13px;
+            color: #888;
+            margin-left: auto;
+        }
+        .class-info .num { color: #2d3748; font-weight: 600; }
+
+        /* ====== 按钮 ====== */
+        .btn {
+            padding: 8px 18px;
+            border: none;
+            border-radius: 8px;
+            font-size: 14px;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all 0.3s;
+            color: white;
+            text-decoration: none;
+            display: inline-block;
+        }
+        .btn:hover { transform: translateY(-2px); box-shadow: 0 4px 15px rgba(0,0,0,0.15); }
+        .btn-blue { background: #667eea; }
+        .btn-green { background: #48bb78; }
+        .btn-red { background: #fc8181; }
+        .btn-gray { background: #a0aec0; }
+        .btn-orange { background: #ed8936; }
+        .btn-purple { background: #9f7aea; }
+        .btn-sm { padding: 4px 12px; font-size: 12px; }
+
+        /* ====== 卡片 ====== */
+        .card {
+            background: white;
+            border-radius: 12px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.06);
+            padding: 20px;
+            margin-bottom: 16px;
+        }
+        .card h3 {
+            font-size: 16px;
+            color: #2d3748;
+            margin-bottom: 12px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        .card .count { font-size: 13px; color: #888; font-weight: 400; }
+
+        /* ====== 作业项 ====== */
+        .assignment-item {
+            padding: 12px 16px;
+            border-bottom: 1px solid #f0f0f0;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            flex-wrap: wrap;
+            gap: 10px;
+            transition: background 0.2s;
+            border-radius: 6px;
+        }
+        .assignment-item:last-child { border-bottom: none; }
+        .assignment-item:hover { background: #f7fafc; }
+        .assignment-item .title { font-weight: 500; }
+        .assignment-item .meta { font-size: 12px; color: #888; margin-top: 2px; }
+        .assignment-item .actions { display: flex; gap: 8px; flex-wrap: wrap; }
+
+        .assignment-item.urgent {
+            background: #fffff0;
+            border-left: 4px solid #ecc94b;
+        }
+        .assignment-item.urgent:hover { background: #ffffe0; }
+        .assignment-item.done-item {
+            opacity: 0.7;
+            background: #f7fafc;
+        }
+        .assignment-item.done-item:hover { opacity: 1; background: #edf2f7; }
+
+        .subject-tag {
+            padding: 2px 10px;
+            border-radius: 12px;
+            font-size: 12px;
+        }
+        .subject-tag.standard { background: #c6f6d5; color: #276749; }
+        .subject-tag.custom { background: #e2e8f0; color: #888; }
+
+        .status-done { color: #48bb78; }
+        .status-pending { color: #ed8936; }
+        .status-urgent { color: #e53e3e; font-weight: 600; }
+
+        .class-tag {
+            background: #e2e8f0;
+            padding: 1px 10px;
+            border-radius: 12px;
+            font-size: 11px;
+            color: #4a5568;
+        }
+
+        .empty-state { text-align: center; padding: 30px; color: #a0aec0; }
+        .empty-state .icon { font-size: 40px; }
+
+        /* ====== Flash ====== */
+        .flash-messages { margin-bottom: 16px; }
+        .flash {
+            padding: 10px 18px;
+            border-radius: 8px;
+            margin-bottom: 8px;
+            font-weight: 500;
+            font-size: 14px;
+        }
+        .flash-success { background: #c6f6d5; color: #276749; border-left: 4px solid #48bb78; }
+        .flash-error { background: #fed7d7; color: #9b2c2c; border-left: 4px solid #fc8181; }
+        .flash-info { background: #bee3f8; color: #2a69ac; border-left: 4px solid #667eea; }
+
+        /* ====== 弹窗 ====== */
+        .modal {
+            display: none;
+            position: fixed;
+            inset: 0;
+            background: rgba(0,0,0,0.4);
+            backdrop-filter: blur(4px);
+            align-items: center;
+            justify-content: center;
+            z-index: 1000;
+        }
+        .modal.show { display: flex; }
+        .modal-content {
+            background: white;
+            padding: 30px;
+            border-radius: 16px;
+            max-width: 500px;
+            width: 92%;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.2);
+            max-height: 90vh;
+            overflow-y: auto;
+        }
+        .modal-content h3 { margin-bottom: 16px; }
+        .modal-actions { display: flex; gap: 10px; justify-content: flex-end; margin-top: 16px; }
+        .form-group { display: flex; flex-direction: column; gap: 4px; margin-bottom: 14px; }
+        .form-group label { font-size: 13px; font-weight: 500; color: #4a5568; }
+        .form-group input, .form-group select, .form-group textarea {
+            padding: 8px 12px;
+            border: 2px solid #e2e8f0;
+            border-radius: 8px;
+            font-size: 14px;
+            transition: border-color 0.2s;
+            font-family: inherit;
+        }
+        .form-group input:focus, .form-group select:focus, .form-group textarea:focus {
+            outline: none;
+            border-color: #667eea;
+        }
+        .form-group textarea { resize: vertical; min-height: 60px; }
+        .form-row {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+            gap: 12px;
+            align-items: end;
+        }
+        .checkbox-group {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            padding-top: 8px;
+        }
+        .checkbox-group input[type="checkbox"] { width: 16px; height: 16px; cursor: pointer; }
+        .checkbox-group label { font-size: 13px; font-weight: 500; color: #4a5568; cursor: pointer; }
+        .hint-text { font-size: 11px; color: #888; margin-top: 2px; }
+
+        .subject-input-wrapper { position: relative; }
+        .subject-dropdown {
+            display: none;
+            position: absolute;
+            top: 100%;
+            left: 0;
+            right: 0;
+            background: white;
+            border: 2px solid #667eea;
+            border-radius: 8px;
+            max-height: 200px;
+            overflow-y: auto;
+            z-index: 1000;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+        }
+        .subject-dropdown.show { display: block; }
+        .subject-dropdown-item {
+            padding: 8px 14px;
+            cursor: pointer;
+            border-bottom: 1px solid #f0f0f0;
+            display: flex;
+            justify-content: space-between;
+        }
+        .subject-dropdown-item:hover { background: #f7fafc; }
+        .subject-dropdown-item .aliases { color: #888; font-size: 12px; }
+        .subject-dropdown-item.custom-item { color: #888; }
+        .subject-tag-display {
+            margin-top: 6px;
+            display: inline-block;
+            padding: 2px 12px;
+            border-radius: 12px;
+            font-size: 13px;
+        }
+        .subject-tag-display.standard { background: #c6f6d5; color: #276749; }
+        .subject-tag-display.custom { background: #e2e8f0; color: #888; }
+
+        .actions-bar {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 10px;
+            margin-bottom: 16px;
+        }
+
+        .admin-all-section {
+            margin-top: 24px;
+            padding-top: 20px;
+            border-top: 2px dashed #e2e8f0;
+        }
+        .admin-all-section .section-title {
+            font-size: 14px;
+            font-weight: 600;
+            color: #4a5568;
+            margin-bottom: 12px;
+        }
+
+        @media (max-width: 640px) {
+            .assignment-item { flex-direction: column; align-items: flex-start; }
+            .header { flex-direction: column; align-items: flex-start; gap: 10px; }
+            .filter-bar { flex-direction: column; align-items: stretch; }
+            .filter-bar .filter-hint { margin-left: 0; text-align: center; }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <!-- ====== 头部 ====== -->
+        <div class="header">
+            <div>
+                <h1>📚 作业管理平台</h1>
+                <span style="font-size:14px; color:#888;">
+                    欢迎回来，{{ session.name }}
+                    {% if primary_class_name %}
+                        · 🏫 {{ primary_class_name }}{{ class_number }}
+                    {% endif %}
+                </span>
+            </div>
+            <div class="user-info">
+                <span class="badge badge-{{ session.role }}">{{ session.role }}</span>
+                <span style="font-size:13px; color:#888;">{{ session.username }}</span>
+                {% if session.role == 'admin' %}
+                    <a href="/admin" class="btn btn-blue btn-sm">⚙️ 管理</a>
+                {% endif %}
+                {% if session.role == 'technician' %}
+                    <a href="/monitor" class="btn btn-blue btn-sm">📊 监控</a>
+                {% endif %}
+                <a href="/logout" class="btn btn-gray btn-sm">退出</a>
+            </div>
+        </div>
+
+        <!-- ====== Flash ====== -->
+        {% with messages = get_flashed_messages(with_categories=true) %}
+            {% if messages %}
+                <div class="flash-messages">
+                    {% for category, message in messages %}
+                        <div class="flash flash-{{ category }}">{{ message }}</div>
+                    {% endfor %}
+                </div>
+            {% endif %}
+        {% endwith %}
+
+        <!-- ====== 过滤栏 ====== -->
+        <div class="filter-bar">
+            <span class="label">📅 日期过滤</span>
+            <input type="date" id="filterDate" value="{{ date_filter }}" onchange="applyFilter()">
+            <select id="filterType" onchange="applyFilter()">
+                <option value="due" {% if date_filter_type == 'due' %}selected{% endif %}>截止日期</option>
+                <option value="created" {% if date_filter_type == 'created' %}selected{% endif %}>创建日期</option>
+            </select>
+            <button class="btn btn-blue" onclick="applyFilter()">🔍 查询</button>
+            {% if is_filtered %}
+                <a href="/page{% if filter_class_id %}?class_id={{ filter_class_id }}{% endif %}" class="btn btn-gray">↩️ 恢复默认视图</a>
+            {% endif %}
+            <span class="filter-hint">
+                {% if is_filtered and date_filter %}
+                    📌 显示 <strong>{{ date_filter }}</strong>
+                    {% if date_filter_type == 'due' %}截止{% else %}创建{% endif %}
+                    的作业
+                {% else %}
+                    📌 显示所有未完成作业
+                {% endif %}
+            </span>
+        </div>
+
+        <!-- ====== 班级切换 ====== -->
+        {% if user_classes|length > 1 %}
+            <div class="class-switcher">
+                <span class="label">📂 班级：</span>
+                <a href="/page{% if is_filtered %}?date={{ date_filter }}&date_type={{ date_filter_type }}{% endif %}" class="class-btn {% if not filter_class_id %}active{% endif %}">
+                    📋 全部作业
+                </a>
+                {% for uc in user_classes %}
+                    <a href="/page?class_id={{ uc.class_id }}{% if is_filtered %}&date={{ date_filter }}&date_type={{ date_filter_type }}{% endif %}" class="class-btn {% if filter_class_id == uc.class_id %}active{% endif %}">
+                        🏫 {{ uc.class_name }}
+                        {% if uc.class_number %}<span class="count">#{{ uc.class_number }}</span>{% endif %}
+                    </a>
+                {% endfor %}
+                <span class="class-info">
+                    当前：<span class="num">{{ filter_class_name }}</span>
+                </span>
+            </div>
+        {% endif %}
+
+        <!-- ====== 操作按钮 ====== -->
+        <div class="actions-bar">
+            <button class="btn btn-green" onclick="showCreateModal()">➕ 新建作业</button>
+            <a href="/page" class="btn btn-blue">🔄 刷新</a>
+        </div>
+
+        <!-- ============================================================ -->
+        <!-- 待完成作业 -->
+        <!-- ============================================================ -->
+        {% set pending = [] %}
+        {% for a in assignments %}
+            {% if a.id not in completed_ids %}
+                {% set _ = pending.append(a) %}
+            {% endif %}
+        {% endfor %}
+
+        <div class="card">
+            <h3>
+                {% if is_filtered and date_filter %}
+                    📅 {{ date_filter }}
+                    {% if date_filter_type == 'due' %}截止{% else %}创建{% endif %}
+                    的作业
+                {% else %}
+                    ⏳ 待完成
+                {% endif %}
+                <span class="count">{{ pending|length }} 个作业</span>
+            </h3>
+
+            {% if pending %}
+                {% for a in pending|sort(attribute='due_date') %}
+                    {% set is_urgent = a.due_date and a.due_date < get_tomorrow_timestamp() %}
+                    {% set class_name = '' %}
+                    {% for uc in user_classes %}
+                        {% if uc.class_id == a.class_id %}
+                            {% set class_name = uc.class_name %}
+                        {% endif %}
+                    {% endfor %}
+
+                    <div class="assignment-item {% if is_urgent %}urgent{% endif %}">
+                        <div>
+                            <div class="title">
+                                #{{ a.id }} {{ a.title }}
+                                {% if is_urgent %}
+                                    <span class="status-urgent">🔥 紧急</span>
+                                {% endif %}
+                                {% if is_filtered and date_filter %}
+                                    <span style="font-size:11px; color:#888;">
+                                        ({{ date_filter_type == 'due' and '截止' or '创建' }}: {{ date_filter }})
+                                    </span>
+                                {% endif %}
+                            </div>
+                            <div class="meta">
+                                📅 截止: {{ a.due_date|format_date }}
+                                {% if a.subject_display %}
+                                    · <span class="subject-tag {{ 'standard' if not a.subject_custom else 'custom' }}">
+                                        {{ a.subject_display }}
+                                    </span>
+                                {% endif %}
+                                {% if class_name %}
+                                    · <span class="class-tag">🏫 {{ class_name }}</span>
+                                {% endif %}
+                                {% if a.creator_name %} · 👤 {{ a.creator_name }}{% endif %}
+                                {% if a.is_public %} · 🌍 公共{% endif %}
+                            </div>
+                        </div>
+                        <div class="actions">
+                            <span class="status-pending">⏳ 待完成</span>
+                            {% if session.role in ['student', 'rep'] %}
+                                <a href="/assignment/complete/{{ a.id }}" class="btn btn-green btn-sm">✅ 完成</a>
+                            {% endif %}
+                            {% if session.role == 'teacher' %}
+                                <a href="/teacher/rep/assign" class="btn btn-purple btn-sm">👨‍🎓 指派</a>
+                            {% endif %}
+                            <a href="/assignment/delete/{{ a.id }}" class="btn btn-red btn-sm" onclick="return confirm('确定删除？')">🗑️</a>
+                        </div>
+                    </div>
+                {% endfor %}
+            {% else %}
+                <div class="empty-state">
+                    <div class="icon">🎉</div>
+                    <p>
+                        {% if is_filtered and date_filter %}
+                            在 {{ date_filter }} 没有
+                            {% if date_filter_type == 'due' %}截止{% else %}创建{% endif %}
+                            的作业
+                        {% else %}
+                            所有作业都已完成，继续保持！
+                        {% endif %}
+                    </p>
+                </div>
+            {% endif %}
+        </div>
+
+        <!-- ============================================================ -->
+        <!-- 已完成作业 -->
+        <!-- ============================================================ -->
+        {% set done = [] %}
+        {% for a in assignments %}
+            {% if a.id in completed_ids %}
+                {% set _ = done.append(a) %}
+            {% endif %}
+        {% endfor %}
+
+        {% if done %}
+            <div class="card">
+                <h3>
+                    ✅ 已完成
+                    <span class="count">{{ done|length }} 个作业</span>
+                </h3>
+
+                {% for a in done|sort(attribute='due_date') %}
+                    {% set class_name = '' %}
+                    {% for uc in user_classes %}
+                        {% if uc.class_id == a.class_id %}
+                            {% set class_name = uc.class_name %}
+                        {% endif %}
+                    {% endfor %}
+
+                    <div class="assignment-item done-item">
+                        <div>
+                            <div class="title">
+                                #{{ a.id }} {{ a.title }}
+                                {% if is_filtered and date_filter %}
+                                    <span style="font-size:11px; color:#888;">
+                                        ({{ date_filter_type == 'due' and '截止' or '创建' }}: {{ date_filter }})
+                                    </span>
+                                {% endif %}
+                            </div>
+                            <div class="meta">
+                                📅 截止: {{ a.due_date|format_date }}
+                                {% if a.subject_display %}
+                                    · <span class="subject-tag {{ 'standard' if not a.subject_custom else 'custom' }}">
+                                        {{ a.subject_display }}
+                                    </span>
+                                {% endif %}
+                                {% if class_name %}
+                                    · <span class="class-tag">🏫 {{ class_name }}</span>
+                                {% endif %}
+                                {% if a.creator_name %} · 👤 {{ a.creator_name }}{% endif %}
+                                {% if a.is_public %} · 🌍 公共{% endif %}
+                            </div>
+                        </div>
+                        <div class="actions">
+                            <span class="status-done">✅ 已完成</span>
+                            {% if session.role in ['student', 'rep'] %}
+                                <a href="/assignment/uncomplete/{{ a.id }}" class="btn btn-orange btn-sm">🔄 取消</a>
+                            {% endif %}
+                            <a href="/assignment/delete/{{ a.id }}" class="btn btn-red btn-sm" onclick="return confirm('确定删除？')">🗑️</a>
+                        </div>
+                    </div>
+                {% endfor %}
+            </div>
+        {% endif %}
+
+        <!-- ============================================================ -->
+        <!-- 管理员：所有班级作业 -->
+        <!-- ============================================================ -->
+        {% if session.role == 'admin' and all_class_assignments %}
+            <div class="admin-all-section">
+                <div class="section-title">📋 所有班级作业（管理员视角）</div>
+                <div class="card" style="box-shadow: 0 2px 10px rgba(102,126,234,0.1); border: 1px solid #e2e8f0;">
+                    <div style="max-height:400px; overflow-y:auto;">
+                        {% for a in all_class_assignments|sort(attribute='due_date') %}
+                            {% set is_urgent = a.due_date and a.due_date < get_tomorrow_timestamp() %}
+                            <!--No Problem Here, only editor problem.-->
+                            <div class="assignment-item {% if is_urgent %}urgent{% endif %}" style="border-left-color: {% if a.is_public %}#667eea{% else %}#a0aec0{% endif %};">
+                                <div>
+                                    <div class="title">
+                                        #{{ a.id }} {{ a.title }}
+                                        {% if is_urgent %}<span class="status-urgent">🔥 紧急</span>{% endif %}
+                                        <span style="font-size:11px; color:#888;">
+                                            ({{ a.class_name or '未分配班级' }})
+                                        </span>
+                                        {% if a.is_public %}
+                                            <span style="font-size:11px; color:#667eea;">🌍 公共</span>
+                                        {% endif %}
+                                    </div>
+                                    <div class="meta">
+                                        📅 截止: {{ a.due_date|format_date }}
+                                        {% if a.subject_display %}
+                                            · <span class="subject-tag {{ 'standard' if not a.subject_custom else 'custom' }}">
+                                                {{ a.subject_display }}
+                                            </span>
+                                        {% endif %}
+                                        👤 {{ a.creator_name or '未知' }}
+                                    </div>
+                                </div>
+                                <div class="actions">
+                                    <span class="{% if a.id in completed_ids %}status-done{% else %}status-pending{% endif %}">
+                                        {% if a.id in completed_ids %}✅ 已完成{% else %}⏳ 待完成{% endif %}
+                                    </span>
+                                    <a href="/assignment/delete/{{ a.id }}" class="btn btn-red btn-sm" onclick="return confirm('确定删除此作业？')">🗑️</a>
+                                </div>
+                            </div>
+                        {% endfor %}
+                    </div>
+                </div>
+            </div>
+        {% endif %}
+    </div>
+
+    <!-- ====== 创建作业弹窗 ====== -->
+    <div class="modal" id="createModal">
+        <div class="modal-content">
+            <h3>📝 新建作业</h3>
+            <form method="POST" action="/assignment/create" id="createForm">
+                <div class="form-group">
+                    <label>标题 <span style="color:red;">*</span></label>
+                    <input type="text" name="title" placeholder="作业名称" required>
+                </div>
+
+                <div class="form-group">
+                    <label>班级 <span style="color:red;">*</span></label>
+                    <select name="class_id" required>
+                        {% for uc in user_classes %}
+                            <option value="{{ uc.class_id }}" {% if filter_class_id == uc.class_id %}selected{% endif %}>
+                                {{ uc.class_name }} {% if uc.class_number %}(#{{ uc.class_number }}){% endif %}
+                            </option>
+                        {% endfor %}
+                    </select>
+                </div>
+
+                <div class="form-group">
+                    <label>科目 <span style="color:#888; font-size:12px;">（支持自定义）</span></label>
+                    <div class="subject-input-wrapper">
+                        <input type="text" id="subjectInput" name="subject" placeholder="输入科目名称，如：语文、数学..." autocomplete="off" oninput="searchSubject(this.value)" onfocus="this.select()">
+                        <div class="subject-dropdown" id="subjectDropdown"></div>
+                    </div>
+                    <div id="subjectTag"></div>
+                    <div class="hint-text">💡 输入科目名称会自动匹配，底部始终有"自定义"选项</div>
+                </div>
+
+                <div class="form-group">
+                    <label>描述</label>
+                    <textarea name="description" placeholder="作业描述..."></textarea>
+                </div>
+
+                <div class="form-row">
+                    <div class="form-group">
+                        <label>截止日期</label>
+                        <input type="date" name="due_date" value="{{ default_due_date }}">
+                        <div class="hint-text">💡 默认为明天</div>
+                    </div>
+                    <div class="form-group checkbox-group">
+                        <input type="checkbox" name="is_public" id="isPublic" {% if session.role in ['admin', 'teacher', 'rep'] %}checked{% else %}disabled{% endif %}>
+                        <label for="isPublic">🌍 公共作业</label>
+                        {% if session.role not in ['admin', 'teacher', 'rep'] %}
+                            <span style="font-size:11px; color:#888;">（仅老师/课代表可创建）</span>
+                        {% endif %}
+                    </div>
+                </div>
+
+                <div class="modal-actions">
+                    <button type="button" class="btn btn-gray" onclick="closeCreateModal()">取消</button>
+                    <button type="submit" class="btn btn-green">创建</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <script>
+        // ====== 过滤功能 ======
+        function applyFilter() {
+            var date = document.getElementById('filterDate').value;
+            var type = document.getElementById('filterType').value;
+            var classId = new URLSearchParams(window.location.search).get('class_id');
+            var url = '/page?';
+            if (classId) url += 'class_id=' + classId + '&';
+            if (date) {
+                url += 'date=' + date + '&date_type=' + type;
+            }
+            window.location.href = url;
+        }
+
+        // ====== 科目智能匹配 ======
+        let subjectMatched = false;
+        let subjectData = null;
+
+        function searchSubject(query) {
+            const dropdown = document.getElementById('subjectDropdown');
+            const tag = document.getElementById('subjectTag');
+
+            if (!query || query.length < 1) {
+                dropdown.classList.remove('show');
+                tag.innerHTML = '';
+                return;
+            }
+
+            fetch(`/api/subjects/search?q=${encodeURIComponent(query)}`)
+                .then(res => res.json())
+                .then(data => {
+                    let html = '';
+                    const results = data.data?.results || [];
+                    if (results.length > 0) {
+                        html += results.map(r => `
+                            <div class="subject-dropdown-item" onclick="selectSubject('${r.standard}', '${r.display}', false)">
+                                <span>${r.display}</span>
+                                <span class="aliases">${r.aliases}</span>
+                            </div>
+                        `).join('');
+                    }
+                    html += `
+                        <div class="subject-dropdown-item custom-item" onclick="selectSubject('${query}', '${query}', true)" style="border-top: 1px solid #e2e8f0; color: #888;">
+                            ✏️ 使用自定义: "${query}"
+                        </div>
+                    `;
+                    dropdown.innerHTML = html;
+                    dropdown.classList.add('show');
+                });
+        }
+
+        function selectSubject(standard, display, isCustom) {
+            const dropdown = document.getElementById('subjectDropdown');
+            const input = document.getElementById('subjectInput');
+            const tag = document.getElementById('subjectTag');
+
+            input.value = display;
+            dropdown.classList.remove('show');
+            subjectMatched = true;
+            subjectData = { standard, display, isCustom: isCustom || false };
+
+            if (isCustom) {
+                tag.innerHTML = `<span class="subject-tag-display custom">⬜ 自定义: ${display}</span>`;
+            } else {
+                tag.innerHTML = `<span class="subject-tag-display standard">✅ ${display}</span>`;
+            }
+        }
+
+        document.addEventListener('click', function(e) {
+            const wrapper = document.querySelector('.subject-input-wrapper');
+            if (wrapper && !wrapper.contains(e.target)) {
+                document.getElementById('subjectDropdown').classList.remove('show');
+            }
+        });
+
+        document.getElementById('createForm').addEventListener('submit', function(e) {
+            const input = document.getElementById('subjectInput');
+            if (!subjectMatched && input.value.trim()) {
+                subjectMatched = true;
+                subjectData = { standard: input.value, display: input.value, isCustom: true };
+                document.getElementById('subjectTag').innerHTML =
+                    `<span class="subject-tag-display custom">⬜ 自定义: ${input.value}</span>`;
+            }
+        });
+
+        function showCreateModal() {
+            document.getElementById('createModal').classList.add('show');
+            subjectMatched = false;
+            subjectData = null;
+            document.getElementById('subjectInput').value = '';
+            document.getElementById('subjectTag').innerHTML = '';
+        }
+
+        function closeCreateModal() {
+            document.getElementById('createModal').classList.remove('show');
+        }
+
+        document.getElementById('createModal').addEventListener('click', function(e) {
+            if (e.target === this) closeCreateModal();
+        });
+
+        document.getElementById('subjectInput').addEventListener('keydown', function(e) {
+            if (e.key === 'Enter') {
+                e.preventDefault();
+                const dropdown = document.getElementById('subjectDropdown');
+                if (dropdown.classList.contains('show')) {
+                    const firstItem = dropdown.querySelector('.subject-dropdown-item');
+                    if (firstItem) firstItem.click();
+                }
+            }
+        });
+
+        // Enter 键触发过滤查询
+        document.getElementById('filterDate').addEventListener('keydown', function(e) {
+            if (e.key === 'Enter') {
+                applyFilter();
+            }
+        });
+    </script>
+</body>
+</html>
