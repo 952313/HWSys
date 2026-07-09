@@ -305,7 +305,21 @@ def api_subjects_search():
     
     for a in assignments:
         a['creator_name'] = a.get('creator_name', '')
-        if a['id'] in completed_ids:
+        # 过滤（与主页一致）：
+        # - 已完成且已过期的作业不显示
+        # - 逾期超过 1 天的作业不显示（截止 < 昨天 00:00）
+        now_ts = int(time.time())
+        today_start = int(time.mktime(datetime.now().replace(hour=0, minute=0, second=0, microsecond=0).timetuple()))
+        yesterday_start = today_start - 86400
+        due = a.get('due_date') or 0
+        is_completed = a['id'] in completed_ids
+
+        if is_completed and due < now_ts:
+            continue
+        if due < yesterday_start:
+            continue
+
+        if is_completed:
             completed.append(a)
         else:
             pending.append(a)

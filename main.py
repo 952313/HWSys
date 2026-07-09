@@ -364,6 +364,32 @@ def page():
     )
     completed_ids = [c['assignment_id'] for c in completions]
 
+    # 过滤：不显示以下作业
+    # - 已完成且已过期的作业（completed 且截止 < 现在）
+    # - 逾期超过 1 天的作业（截止 < 昨天的 00:00） —— 保留昨天截止的作业
+    now_ts = int(time.time())
+    today_start = int(time.mktime(datetime.now().replace(hour=0, minute=0, second=0, microsecond=0).timetuple()))
+    yesterday_start = today_start - 86400
+
+    filtered_assignments = []
+    for a in assignments:
+        due = a.get('due_date') or 0
+        is_completed = a['id'] in completed_ids
+
+        # 已完成且已经逾期（任意逾期） -> 隐藏
+        # 但如果用户是用截止日期过滤并且该作业的截止时间在所选日期范围内，则应显示
+        if is_completed and due < now_ts:
+            if not (is_filtered and date_filter_type == 'due' and date_ts_start <= due < date_ts_end):
+                continue
+
+        # 逾期超过 1 天（截止在昨天之前的日期） -> 隐藏
+        if due < yesterday_start:
+            continue
+
+        filtered_assignments.append(a)
+
+    assignments = filtered_assignments
+
     # 权限
     can_create_public = role in ['admin', 'teacher', 'rep']
     can_create_personal = True
@@ -1153,6 +1179,71 @@ def admin_create_subject():
         db='user'
     )
     flash(f'✅ 科目 "{name}" 创建成功！', 'success')
+    return redirect('/admin')
+
+
+@app.route('/admin/assignments/export')
+@require_role(['admin'])
+def admin_export_assignments():
+    """导出过期作业为 CSV，参数：days（可选，默认 config.CLEANUP_EXPIRED_DAYS）"""
+    days = request.args.get('days', type=int) or config.CLEANUP_EXPIRED_DAYS
+    cutoff = int(time.time()) - days * 86400
+
+    assignments = storage._query(
+        "SELECT * FROM assignments WHERE due_date < ? ORDER BY due_date",
+        (cutoff,),
+        db='work'
+    )
+
+    output = io.StringIO()
+    writer = csv.writer(output)
+    writer.writerow(['id', 'title', 'subject', 'subject_display', 'created_by', 'class_id', 'is_public', 'created_at', 'due_date'])
+    for a in assignments:
+        writer.writerow([
+            a.get('id'), a.get('title'), a.get('subject'), a.get('subject_display'),
+            a.get('created_by'), a.get('class_id'), a.get('is_public'), a.get('created_at'), a.get('due_date')
+        ])
+
+    output.seek(0)
+    return send_file(
+        io.BytesIO(output.getvalue().encode('utf-8-sig')),
+        mimetype='text/csv',
+        as_attachment=True,
+        download_name=f'assignments_expired_{days}d.csv'
+    )
+
+
+@app.route('/admin/assignments/cleanup', methods=['POST'])
+@require_role(['admin'])
+def admin_cleanup_assignments():
+    """将过期作业移入 recycle_bin 并删除，参数：days（可选），reason（可选）"""
+    days = request.form.get('days', type=int) or config.CLEANUP_EXPIRED_DAYS
+    reason = request.form.get('reason', '').strip() or '管理员清理'
+    cutoff = int(time.time()) - days * 86400
+
+    assignments = storage._query(
+        "SELECT * FROM assignments WHERE due_date < ?",
+        (cutoff,),
+        db='work'
+    )
+
+    count = 0
+    for a in assignments:
+        # 保存到回收站（串行写入到写队列）
+        storage._enqueue_write(
+            "INSERT INTO recycle_bin (assignment, deleted_by, deleted_at, reason) VALUES (?, ?, ?, ?)",
+            (json.dumps(a, ensure_ascii=False), session.get('user_id'), int(time.time()), reason),
+            db='work'
+        )
+        storage._enqueue_write(
+            "DELETE FROM assignments WHERE id = ?",
+            (a['id'],),
+            cache_keys=['assignments'],
+            db='work'
+        )
+        count += 1
+
+    flash(f'✅ 已清理 {count} 个作业（早于 {days} 天）', 'success')
     return redirect('/admin')
 
 

@@ -465,6 +465,13 @@ class Storage:
                 if 'classes' in sql:
                     if 'classes:all' in self.cache:
                         del self.cache['classes:all']
+                # 当修改 users 表时，清除用户缓存
+                if 'users' in sql:
+                    keys_to_delete = [k for k in self.cache.keys() if k.startswith('user:') or k == 'users:all']
+                    for k in keys_to_delete:
+                        del self.cache[k]
+
+        self._invalidate_cache_by_sql(sql)
 
     # ==========================================
     # 用户相关操作
