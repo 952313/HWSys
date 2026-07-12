@@ -287,7 +287,7 @@ def api_subjects_search():
         FROM assignments a
         LEFT JOIN users u ON a.created_by = u.id
         WHERE a.class_id IN ({placeholders})
-        ORDER BY a.due_date ASC, a.created_at ASC
+        ORDER BY (a.due_year*10000 + a.due_month*100 + a.due_day) ASC, a.created_at ASC
     '''
     assignments = storage._query(sql, tuple(filter_class_ids), db='work')
     
@@ -308,15 +308,21 @@ def api_subjects_search():
         # 过滤（与主页一致）：
         # - 已完成且已过期的作业不显示
         # - 逾期超过 1 天的作业不显示（截止 < 昨天 00:00）
+        # 以日为单位比较
         now_ts = int(time.time())
-        today_start = int(time.mktime(datetime.now().replace(hour=0, minute=0, second=0, microsecond=0).timetuple()))
-        yesterday_start = today_start - 86400
-        due = a.get('due_date') or 0
+        today = datetime.now()
+        today_index = today.year * 10000 + today.month * 100 + today.day
+        yesterday = today - timedelta(days=1)
+        yesterday_index = yesterday.year * 10000 + yesterday.month * 100 + yesterday.day
+        y = int(a.get('due_year') or 0)
+        m = int(a.get('due_month') or 0)
+        d = int(a.get('due_day') or 0)
+        due = (y * 10000 + m * 100 + d) if y and m and d else 0
         is_completed = a['id'] in completed_ids
 
-        if is_completed and due < now_ts:
+        if is_completed and due and due < today_index:
             continue
-        if due < yesterday_start:
+        if due and due < yesterday_index:
             continue
 
         if is_completed:
@@ -450,11 +456,12 @@ def api_homework_create():
     # 处理截止日期
     if due_date_str:
         try:
-            due_date = int(time.mktime(time.strptime(due_date_str, '%Y-%m-%d')))
-        except ValueError:
+            yy = int(due_date_str[0:4]); mm = int(due_date_str[5:7]); dd = int(due_date_str[8:10])
+        except Exception:
             return api_response(False, message='截止日期格式错误，请使用 YYYY-MM-DD', code=400), 400
     else:
-        due_date = int(time.time() + 7 * 24 * 3600)
+        dt = datetime.now() + timedelta(days=7)
+        yy, mm, dd = dt.year, dt.month, dt.day
     
     # 公共作业权限检查
     if is_public and role not in ['admin', 'teacher', 'rep']:
@@ -465,11 +472,11 @@ def api_homework_create():
         INSERT INTO assignments
         (title, description, subject, subject_display, subject_custom,
          created_by, class_id, is_public, shared_with, pending_invites,
-         created_at, due_date)
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+         created_at, due_year, due_month, due_day)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     ''', (title, description, subject_standard, subject_display, subject_custom,
           user_id, class_id, 1 if is_public else 0, '[]', '[]',
-          int(time.time()), due_date),
+          int(time.time()), yy, mm, dd),
         cache_keys=['assignments'],
         db='work',
         return_id=True
@@ -484,7 +491,7 @@ def api_homework_create():
         'created_by': user_id,
         'class_id': class_id,
         'is_public': is_public,
-        'due_date': due_date
+        'due_date': f"{yy}-{mm:02d}-{dd:02d}"
     }
     
     return api_response(True, data=new_assignment, message='作业创建成功', http_code=201)

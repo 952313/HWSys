@@ -1,0 +1,211 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width,initial-scale=1" />
+    <title>班级作业管理</title>
+    <style>
+        body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Arial, sans-serif; background:#f7fafc; padding:20px; }
+        .container { max-width:1000px; margin:0 auto; }
+        .card { background:white; padding:16px; border-radius:10px; box-shadow:0 2px 8px rgba(0,0,0,0.06); margin-bottom:12px; }
+        .btn { padding:8px 12px; border-radius:8px; text-decoration:none; color:white; }
+        .btn-blue { background:#667eea; }
+        .btn-green { background:#48bb78; }
+        .btn-red { background:#fc8181; }
+        table { width:100%; border-collapse:collapse; }
+        th, td { padding:8px 10px; border-bottom:1px solid #eee; text-align:left; }
+        .form-row { display:flex; gap:8px; flex-wrap:wrap; }
+        .form-group { display:flex; flex-direction:column; min-width:150px; }
+        .form-group input, .form-group select { padding:8px; border-radius:6px; border:1px solid #e2e8f0; }
+
+        /* 复用学生端科目下拉样式，确保位置和高亮一致 */
+        .subject-input-wrapper { position: relative; }
+        .subject-dropdown {
+            display: none;
+            position: absolute;
+            top: 100%;
+            left: 0;
+            right: 0;
+            background: white;
+            border: 2px solid #667eea;
+            border-radius: 8px;
+            max-height: 200px;
+            overflow-y: auto;
+            z-index: 1000;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+        }
+        .subject-dropdown.show { display:block; }
+        .subject-dropdown-item { padding: 8px 14px; cursor: pointer; border-bottom: 1px solid #f0f0f0; display:flex; justify-content:space-between; }
+        .subject-dropdown-item:hover { background: #f7fafc; }
+        .subject-dropdown-item .aliases { color: #888; font-size: 12px; }
+        .subject-dropdown-item.custom-item { color: #888; }
+        .subject-tag-display { margin-top:6px; display:inline-block; padding:2px 12px; border-radius:12px; font-size:13px; }
+        .subject-tag-display.standard { background:#c6f6d5; color:#276749; }
+        .subject-tag-display.custom { background:#e2e8f0; color:#888; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:12px;">
+            <div>
+                <h2>班级：{{ class_info.name if class_info else '' }}</h2>
+            </div>
+            <div>
+                <a href="/admin" class="btn btn-blue">返回管理后台</a>
+            </div>
+        </div>
+
+        <div class="card">
+            <h3>创建新作业</h3>
+            <form method="POST" action="/admin/assignment/create">
+                <input type="hidden" name="class_id" value="{{ class_info.id }}">
+                <div class="form-row">
+                    <div class="form-group">
+                        <label>标题</label>
+                        <input type="text" name="title" required>
+                    </div>
+                    <div class="form-group">
+                        <label>科目</label>
+                        <div class="subject-input-wrapper">
+                            <input type="text" id="subjectInputAdmin" name="subject" placeholder="输入科目名称，如：语文、数学..." autocomplete="off" oninput="searchSubjectAdmin(this.value)" onfocus="this.select()">
+                            <div class="subject-dropdown" id="subjectDropdownAdmin"></div>
+                        </div>
+                        <div id="subjectTagAdmin"></div>
+                    </div>
+                    <div class="form-group">
+                        <label>截止日期</label>
+                        <input type="date" name="due_date" value="{{ default_due_date }}">
+                    </div>
+                    <div class="form-group">
+                        <label>批量应用到其他班级</label>
+                        <select name="other_class_ids" multiple style="min-width:200px;">
+                            {% for c in classes if c.id != class_info.id %}
+                                <option value="{{ c.id }}">{{ c.name }}</option>
+                            {% endfor %}
+                        </select>
+                        <div class="hint-text">（按住 Ctrl / Command 可多选）</div>
+                    </div>
+                    <div class="form-group" style="align-self:flex-end;">
+                        <button class="btn btn-green" type="submit">创建</button>
+                    </div>
+                </div>
+                <div style="margin-top:8px;">
+                    <label>描述</label>
+                    <textarea name="description" rows="3" style="width:100%; padding:8px; border-radius:6px; border:1px solid #e2e8f0;"></textarea>
+                </div>
+            </form>
+        </div>
+
+        <div class="card">
+            <h3>作业列表</h3>
+            <table>
+                <thead>
+                    <tr><th>ID</th><th>标题</th><th>科目</th><th>创建者</th><th>截止</th><th>操作</th></tr>
+                </thead>
+                <tbody>
+                    {% for a in assignments %}
+                        <tr>
+                            <td>{{ a.id }}</td>
+                            <td>{{ a.title }}</td>
+                            <td>{{ a.subject_display or a.subject }}</td>
+                            <td>{{ a.creator_name or '未知' }}</td>
+                            <td>{{ a.due_date_str }}</td>
+                            <td>
+                                <a href="/admin/assignment/edit/{{ a.id }}" class="btn btn-blue">编辑</a>
+                                <a href="/assignment/delete/{{ a.id }}" class="btn btn-red" onclick="return confirm('确定删除？')">删除</a>
+                            </td>
+                        </tr>
+                    {% else %}
+                        <tr><td colspan="6">暂无作业</td></tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+
+    </div>
+    <script>
+        // ====== 管理端 科目智能匹配（复用学生端实现） ======
+        let subjectMatchedAdmin = false;
+        function searchSubjectAdmin(query) {
+            const dropdown = document.getElementById('subjectDropdownAdmin');
+            const tag = document.getElementById('subjectTagAdmin');
+
+            if (!query || query.length < 1) {
+                dropdown.classList.remove('show');
+                tag.innerHTML = '';
+                return;
+            }
+
+            fetch(`/api/subjects/search?q=${encodeURIComponent(query)}`)
+                .then(res => res.json())
+                .then(data => {
+                    let html = '';
+                    const results = data.data?.results || [];
+                    if (results.length > 0) {
+                        html += results.map(r => `
+                            <div class="subject-dropdown-item" onclick="selectSubjectAdmin('${r.standard}', '${r.display}', false)">
+                                <span>${r.display}</span>
+                                <span class="aliases">${r.aliases}</span>
+                            </div>
+                        `).join('');
+                    }
+                    html += `
+                        <div class="subject-dropdown-item custom-item" onclick="selectSubjectAdmin('${query}', '${query}', true)" style="border-top: 1px solid #e2e8f0; color: #888;">
+                            ✏️ 使用自定义: "${query}"
+                        </div>
+                    `;
+                    dropdown.innerHTML = html;
+                    dropdown.classList.add('show');
+                });
+        }
+
+        function selectSubjectAdmin(standard, display, isCustom) {
+            const dropdown = document.getElementById('subjectDropdownAdmin');
+            const input = document.getElementById('subjectInputAdmin');
+            const tag = document.getElementById('subjectTagAdmin');
+
+            input.value = display;
+            dropdown.classList.remove('show');
+            subjectMatchedAdmin = true;
+
+            if (isCustom) {
+                tag.innerHTML = `<span class="subject-tag-display custom">⬜ 自定义: ${display}</span>`;
+            } else {
+                tag.innerHTML = `<span class="subject-tag-display standard">✅ ${display}</span>`;
+            }
+        }
+
+        document.addEventListener('click', function(e) {
+            const wrapper = document.querySelector('.subject-input-wrapper');
+            if (wrapper && !wrapper.contains(e.target)) {
+                const dd = document.getElementById('subjectDropdownAdmin');
+                if (dd) dd.classList.remove('show');
+            }
+        });
+
+        // 在提交前确保科目标记
+        document.querySelector('form[action="/admin/assignment/create"]').addEventListener('submit', function(e) {
+            const input = document.getElementById('subjectInputAdmin');
+            if (!subjectMatchedAdmin && input && input.value.trim()) {
+                subjectMatchedAdmin = true;
+                document.getElementById('subjectTagAdmin').innerHTML = `<span class="subject-tag-display custom">⬜ 自定义: ${input.value}</span>`;
+            }
+        });
+
+        // 回车选择第一项（与学生端一致）
+        const subjAdminInput = document.getElementById('subjectInputAdmin');
+        if (subjAdminInput) {
+            subjAdminInput.addEventListener('keydown', function(e) {
+                if (e.key === 'Enter') {
+                    e.preventDefault();
+                    const dropdown = document.getElementById('subjectDropdownAdmin');
+                    if (dropdown && dropdown.classList.contains('show')) {
+                        const firstItem = dropdown.querySelector('.subject-dropdown-item');
+                        if (firstItem) firstItem.click();
+                    }
+                }
+            });
+        }
+    </script>
+</body>
+</html>

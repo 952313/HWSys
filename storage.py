@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """
-存储层 - 双库分离 (用户库 + 作业库)
+存储层 - 三库分离 (用户库 + 作业库 + 日志库)
 """
 
 import sqlite3
@@ -13,7 +13,7 @@ import config
 
 
 class Storage:
-    """存储层主类 - 支持双库分离"""
+    """存储层主类 - 支持三库分离"""
 
     def __init__(self):
         # ====== 用户数据库 ======
@@ -25,6 +25,11 @@ class Storage:
         self.work_db_path = config.WORK_DB_PATH
         self.work_conn = None
         self.work_cursor = None
+
+        # ====== 日志数据库 ======
+        self.log_db_path = config.LOG_DB_PATH
+        self.log_conn = None
+        self.log_cursor = None
 
         # ====== 缓存 ======
         self.cache = {}
@@ -64,6 +69,13 @@ class Storage:
             self.work_conn.row_factory = sqlite3.Row
         return self.work_conn
 
+    def _get_log_conn(self):
+        """获取日志数据库连接"""
+        if self.log_conn is None:
+            self.log_conn = sqlite3.connect(self.log_db_path, check_same_thread=False)
+            self.log_conn.row_factory = sqlite3.Row
+        return self.log_conn
+
     def _close_connections(self):
         """关闭所有连接"""
         if self.user_conn:
@@ -72,15 +84,19 @@ class Storage:
         if self.work_conn:
             self.work_conn.close()
             self.work_conn = None
+        if self.log_conn:
+            self.log_conn.close()
+            self.log_conn = None
 
     # ==========================================
     # 数据库初始化
     # ==========================================
 
     def _init_databases(self):
-        """初始化两个数据库"""
+        """初始化三个数据库"""
         self._init_user_db()
         self._init_work_db()
+        self._init_log_db()
 
     def _init_user_db(self):
         """初始化用户数据库"""
@@ -181,7 +197,9 @@ class Storage:
                 shared_with TEXT DEFAULT '[]',
                 pending_invites TEXT DEFAULT '[]',
                 created_at INTEGER NOT NULL,
-                due_date INTEGER NOT NULL
+                due_year INTEGER,
+                due_month INTEGER,
+                due_day INTEGER
             )
         ''')
 
@@ -218,6 +236,58 @@ class Storage:
                 reason TEXT
             )
         ''')
+
+        # 操作日志表
+        cursor.execute('''
+            CREATE TABLE IF NOT EXISTS operation_logs (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                user_id INTEGER,
+                username TEXT,
+                ip TEXT,
+                action TEXT,
+                path TEXT,
+                method TEXT,
+                status_code INTEGER,
+                duration_ms INTEGER,
+                error_message TEXT,
+                user_agent TEXT,
+                created_at INTEGER
+            )
+        ''')
+
+        # 错误日志表
+        cursor.execute('''
+            CREATE TABLE IF NOT EXISTS error_logs (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                error_type TEXT,
+                error_message TEXT,
+                stack_trace TEXT,
+                path TEXT,
+                user_id INTEGER,
+                ip TEXT,
+                resolved INTEGER DEFAULT 0,
+                created_at INTEGER
+            )
+        ''')
+
+        # 每日统计表
+        cursor.execute('''
+            CREATE TABLE IF NOT EXISTS daily_stats (
+                date TEXT PRIMARY KEY,
+                total_visits INTEGER DEFAULT 0,
+                total_operations INTEGER DEFAULT 0,
+                total_errors INTEGER DEFAULT 0,
+                avg_response_ms INTEGER DEFAULT 0,
+                updated_at INTEGER
+            )
+        ''')
+
+        conn.commit()
+
+    def _init_log_db(self):
+        """初始化日志数据库"""
+        conn = self._get_log_conn()
+        cursor = conn.cursor()
 
         # 操作日志表
         cursor.execute('''
@@ -341,12 +411,26 @@ class Storage:
                 keys_to_delete = [k for k in self.cache.keys() if k.startswith('user:') or k == 'users:all']
                 for k in keys_to_delete:
                     del self.cache[k]
+            if 'error_logs' in sql:
+                keys_to_delete = [k for k in self.cache.keys() if k.startswith('error_logs:')]
+                for k in keys_to_delete:
+                    del self.cache[k]
+            if 'operation_logs' in sql:
+                keys_to_delete = [k for k in self.cache.keys() if k.startswith('operation_logs:')]
+                for k in keys_to_delete:
+                    del self.cache[k]
+            if 'daily_stats' in sql:
+                keys_to_delete = [k for k in self.cache.keys() if k.startswith('daily_stats:')]
+                for k in keys_to_delete:
+                    del self.cache[k]
 
     def _execute_write(self, task):
         try:
-            db_type = task.get('db', 'work')  # 'user' or 'work'
+            db_type = task.get('db', 'work')  # 'user', 'work' or 'log'
             if db_type == 'user':
                 conn = self._get_user_conn()
+            elif db_type == 'log':
+                conn = self._get_log_conn()
             else:
                 conn = self._get_work_conn()
 
@@ -423,6 +507,8 @@ class Storage:
 
         if db == 'user':
             conn = self._get_user_conn()
+        elif db == 'log':
+            conn = self._get_log_conn()
         else:
             conn = self._get_work_conn()
 
@@ -444,7 +530,12 @@ class Storage:
 
     def _execute(self, sql, params=None, db='work', cache_keys=None):
         """直接执行 SQL（同步），支持可选缓存清理"""
-        conn = self._get_work_conn() if db == 'work' else self._get_user_conn()
+        if db == 'user':
+            conn = self._get_user_conn()
+        elif db == 'log':
+            conn = self._get_log_conn()
+        else:
+            conn = self._get_work_conn()
         cursor = conn.cursor()
         cursor.execute(sql, params or ())
         conn.commit()
@@ -527,7 +618,7 @@ class Storage:
         params = (user_id, username, ip, action, path, method,
                   status_code, duration_ms, error_message, user_agent, int(time.time()))
 
-        self._enqueue_write(sql, params, cache_keys=['daily_stats'], db='work')
+        self._enqueue_write(sql, params, cache_keys=['daily_stats'], db='log')
 
     def log_error(self, error_type, error_message, stack_trace, path, user_id, ip):
         sql = '''
@@ -537,7 +628,7 @@ class Storage:
         '''
         params = (error_type, error_message, stack_trace, path, user_id, ip, int(time.time()))
 
-        self._execute(sql, params, db='work')
+        self._execute(sql, params, db='log')
 
     # ==========================================
     # 监控数据查询
@@ -550,23 +641,68 @@ class Storage:
             "SELECT * FROM daily_stats WHERE date = ?",
             (date,),
             cache_key=f'daily_stats:{date}',
-            db='work'
+            db='log'
         )
 
-    def get_recent_errors(self, limit=50):
+    def get_recent_errors(self, limit=50, resolved=None):
+        sql = "SELECT * FROM error_logs"
+        params = []
+        cache_key = f'error_logs:recent:{limit}:all'
+        if resolved is not None:
+            sql += " WHERE resolved = ?"
+            params.append(1 if resolved else 0)
+            cache_key = f'error_logs:recent:{limit}:{resolved}'
+        sql += " ORDER BY created_at DESC LIMIT ?"
+        params.append(limit)
         return self._query(
-            "SELECT * FROM error_logs ORDER BY created_at DESC LIMIT ?",
-            (limit,),
-            cache_key=f'error_logs:recent:{limit}',
-            db='work'
+            sql,
+            tuple(params),
+            cache_key=cache_key,
+            db='log'
         )
+
+    def get_errors(self, resolved=None, limit=None):
+        sql = "SELECT * FROM error_logs"
+        params = []
+        cache_key = 'error_logs:all:all'
+        if resolved is not None:
+            sql += " WHERE resolved = ?"
+            params.append(1 if resolved else 0)
+            cache_key = f'error_logs:all:{resolved}'
+        sql += " ORDER BY created_at DESC"
+        if limit is not None:
+            sql += " LIMIT ?"
+            params.append(limit)
+            cache_key = f'error_logs:all:{resolved}:{limit}'
+        return self._query(
+            sql,
+            tuple(params),
+            cache_key=cache_key,
+            db='log'
+        )
+
+    def cleanup_old_resolved_errors(self, days=5):
+        cutoff = int(time.time()) - days * 86400
+        sql = '''
+            DELETE FROM error_logs
+            WHERE resolved = 1
+              AND created_at < ?
+              AND NOT EXISTS (
+                  SELECT 1 FROM error_logs e2
+                  WHERE e2.error_type = error_logs.error_type
+                    AND e2.error_message = error_logs.error_message
+                    AND e2.path = error_logs.path
+                    AND e2.created_at > error_logs.created_at
+              )
+        '''
+        self._execute(sql, (cutoff,), db='log', cache_keys=['error_logs:recent', 'error_logs:all'])
 
     def get_recent_operations(self, limit=100):
         return self._query(
             "SELECT * FROM operation_logs ORDER BY created_at DESC LIMIT ?",
             (limit,),
             cache_key=f'operation_logs:recent:{limit}',
-            db='work'
+            db='log'
         )
 
     def get_operation_stats(self, date=None):
@@ -587,7 +723,7 @@ class Storage:
             GROUP BY action
             ORDER BY count DESC
         '''
-        return self._query(sql, (start_ts, end_ts), cache_key=f'op_stats:{date}', db='work')
+        return self._query(sql, (start_ts, end_ts), cache_key=f'op_stats:{date}', db='log')
 
     # ==========================================
     # 关闭

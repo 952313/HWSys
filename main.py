@@ -30,6 +30,89 @@ app.debug = config.DEBUG
 # ==========================================
 storage = Storage()
 
+# 确保 assignments 表有按日存储的列：due_year, due_month, due_day
+def ensure_due_ymd_columns():
+    cols = storage._query("PRAGMA table_info(assignments)", db='work')
+    existing = {c['name'] for c in cols} if cols else set()
+    need_alter = False
+    to_add = []
+    if 'due_year' not in existing:
+        to_add.append('due_year INTEGER')
+        need_alter = True
+    if 'due_month' not in existing:
+        to_add.append('due_month INTEGER')
+        need_alter = True
+    if 'due_day' not in existing:
+        to_add.append('due_day INTEGER')
+        need_alter = True
+
+    if need_alter:
+        for col_def in to_add:
+            try:
+                storage._execute(f"ALTER TABLE assignments ADD COLUMN {col_def}", (), db='work')
+            except Exception:
+                pass
+
+    # 迁移已有数据（当 due_year 为空且 due_date 非空时）
+    # 仅在表中存在 due_date 列时尝试迁移
+    if 'due_date' in existing:
+        rows = storage._query("SELECT id, due_date FROM assignments WHERE due_date IS NOT NULL AND (due_year IS NULL OR due_year = '')", db='work')
+    else:
+        rows = []
+    for r in rows:
+        try:
+            ts = int(r.get('due_date') or 0)
+            dt = datetime.fromtimestamp(ts)
+            y, m, d = dt.year, dt.month, dt.day
+            storage._execute("UPDATE assignments SET due_year = ?, due_month = ?, due_day = ? WHERE id = ?", (y, m, d, r['id']), db='work')
+        except Exception:
+            continue
+
+ensure_due_ymd_columns()
+
+def drop_due_date_column():
+    # 如果 assignments 表中存在 due_date 列，则重建表去掉该列
+    try:
+        cols = storage._query("PRAGMA table_info(assignments)", db='work')
+        col_names = [c['name'] for c in cols]
+        if 'due_date' not in col_names:
+            return
+
+        # 新表结构（不含 due_date）
+        storage._execute('''
+            CREATE TABLE IF NOT EXISTS assignments_new (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                title TEXT NOT NULL,
+                description TEXT,
+                subject TEXT,
+                subject_display TEXT,
+                subject_custom INTEGER DEFAULT 0,
+                created_by INTEGER NOT NULL,
+                class_id INTEGER NOT NULL,
+                is_public INTEGER DEFAULT 0,
+                shared_with TEXT DEFAULT '[]',
+                pending_invites TEXT DEFAULT '[]',
+                created_at INTEGER NOT NULL,
+                due_year INTEGER,
+                due_month INTEGER,
+                due_day INTEGER
+            )
+        ''', db='work')
+
+        # 复制数据（排除 due_date）
+        existing_cols = [c for c in col_names if c != 'due_date']
+        cols_csv = ','.join(existing_cols)
+        storage._execute(f"INSERT INTO assignments_new ({cols_csv}) SELECT {cols_csv} FROM assignments", db='work')
+
+        # 替换表
+        storage._execute("DROP TABLE assignments", db='work')
+        storage._execute("ALTER TABLE assignments_new RENAME TO assignments", db='work')
+    except Exception as e:
+        print('迁移删除 due_date 列失败:', e)
+
+# 执行删除旧的精确到秒的 due_date 列迁移
+drop_due_date_column()
+
 # ==========================================
 # 注册API
 # ==========================================
@@ -159,8 +242,15 @@ def require_role(roles):
                 flash('请先登录', 'error')
                 return redirect('/')
             if session.get('role') not in roles:
-                flash('权限不足', 'error')
-                return redirect('/page')
+                home_url, home_label = get_home_for_role()
+                return render_template(
+                    'error.html',
+                    error_code=403,
+                    error_message='权限不足：您无权访问此页面。',
+                    user_logged_in=True,
+                    home_url=home_url,
+                    home_label=home_label
+                ), 403
             return f(*args, **kwargs)
         return decorated_function
     return decorator
@@ -175,14 +265,8 @@ def index():
     if 'user_id' not in session:
         return render_template('login.html')
     
-    role = session.get('role')
-    
-    if role == 'admin':
-        return redirect('/admin')
-    elif role == 'technician':
-        return redirect('/monitor')
-    else:
-        return redirect('/page')
+    home_url, _ = get_home_for_role()
+    return redirect(home_url)
 
 
 @app.route('/login', methods=['POST'])
@@ -222,13 +306,8 @@ def login():
 
     if user_data['first_login']:
         return redirect('/change_password')
-
-    if session['role'] == 'admin':
-        return redirect('/admin')
-    elif session['role'] == 'technician':
-        return redirect('/monitor')
-    else:
-        return redirect('/page')
+    home_url, _ = get_home_for_role()
+    return redirect(home_url)
 
 
 @app.route('/logout')
@@ -271,7 +350,10 @@ def change_password():
         db='user'
     )
     flash('密码修改成功！', 'success')
-    return redirect('/page')
+    # 更新 session 状态
+    session['first_login'] = 0
+    home_url, _ = get_home_for_role()
+    return redirect(home_url)
 
 
 # ==========================================
@@ -317,15 +399,24 @@ def page():
     if date_filter:
         try:
             # 解析日期 (YYYY-MM-DD)
-            date_ts_start = int(time.mktime(time.strptime(date_filter, '%Y-%m-%d')))
-            date_ts_end = date_ts_start + 86400  # 加一天
+            year = int(date_filter[0:4])
+            month = int(date_filter[5:7])
+            day = int(date_filter[8:10])
+            date_index_start = year * 10000 + month * 100 + day
+            # 加一天 -> 索引增 1
+            # 计算 end by converting to next day index
+            dt_next = datetime(year, month, day) + timedelta(days=1)
+            date_index_end = dt_next.year * 10000 + dt_next.month * 100 + dt_next.day
             is_filtered = True
             
             if date_filter_type == 'due':
-                date_condition = "AND a.due_date >= ? AND a.due_date < ?"
+                date_condition = "AND (a.due_year*10000 + a.due_month*100 + a.due_day) >= ? AND (a.due_year*10000 + a.due_month*100 + a.due_day) < ?"
+                date_params = [date_index_start, date_index_end]
             else:  # 'created'
+                date_ts_start = int(time.mktime(time.strptime(date_filter, '%Y-%m-%d')))
+                date_ts_end = date_ts_start + 86400
                 date_condition = "AND a.created_at >= ? AND a.created_at < ?"
-            date_params = [date_ts_start, date_ts_end]
+                date_params = [date_ts_start, date_ts_end]
         except ValueError:
             date_filter = ''  # 无效日期，忽略
 
@@ -337,7 +428,7 @@ def page():
             FROM assignments a
             WHERE a.class_id IN ({placeholders})
             {date_condition}
-            ORDER BY a.due_date ASC, a.created_at ASC
+            ORDER BY (a.due_year*10000 + a.due_month*100 + a.due_day) ASC, a.created_at ASC
         '''
         params = tuple(filter_class_ids + date_params)
         assignments = storage._query(sql, params, db='work')
@@ -353,6 +444,23 @@ def page():
                 a['creator_name'] = creator['name'] if creator else '未知'
             else:
                 a['creator_name'] = '未知'
+            # 计算 due 的索引/时间/显示字符串
+            try:
+                y = int(a.get('due_year') or 0)
+                m = int(a.get('due_month') or 0)
+                d = int(a.get('due_day') or 0)
+                if y and m and d:
+                    a['due_index'] = y * 10000 + m * 100 + d
+                    a['due_ts'] = int(time.mktime(datetime(y, m, d).timetuple()))
+                    a['due_date_str'] = f"{y}-{m:02d}-{d:02d}"
+                else:
+                    a['due_index'] = 0
+                    a['due_ts'] = 0
+                    a['due_date_str'] = ''
+            except Exception:
+                a['due_index'] = 0
+                a['due_ts'] = 0
+                a['due_date_str'] = ''
     else:
         assignments = []
 
@@ -364,26 +472,34 @@ def page():
     )
     completed_ids = [c['assignment_id'] for c in completions]
 
+    # 教师不使用完成标记：显示所有作业（不区分已完成/待完成）
+    if role == 'teacher':
+        completed_ids = []
+
     # 过滤：不显示以下作业
     # - 已完成且已过期的作业（completed 且截止 < 现在）
     # - 逾期超过 1 天的作业（截止 < 昨天的 00:00） —— 保留昨天截止的作业
+    # 以索引 (YYYYMMDD) 进行天粒度比较
     now_ts = int(time.time())
-    today_start = int(time.mktime(datetime.now().replace(hour=0, minute=0, second=0, microsecond=0).timetuple()))
-    yesterday_start = today_start - 86400
+    today = datetime.now()
+    today_index = today.year * 10000 + today.month * 100 + today.day
+    tomorrow = today + timedelta(days=1)
+    tomorrow_index = tomorrow.year * 10000 + tomorrow.month * 100 + tomorrow.day
+    yesterday = today - timedelta(days=1)
+    yesterday_index = yesterday.year * 10000 + yesterday.month * 100 + yesterday.day
 
     filtered_assignments = []
     for a in assignments:
-        due = a.get('due_date') or 0
+        due_index = a.get('due_index') or 0
         is_completed = a['id'] in completed_ids
 
-        # 已完成且已经逾期（任意逾期） -> 隐藏
-        # 但如果用户是用截止日期过滤并且该作业的截止时间在所选日期范围内，则应显示
-        if is_completed and due < now_ts:
-            if not (is_filtered and date_filter_type == 'due' and date_ts_start <= due < date_ts_end):
+        # 已完成且已经逾期（按日） -> 隐藏
+        if is_completed and due_index and due_index < today_index:
+            if not (is_filtered and date_filter_type == 'due' and date_index_start <= due_index < date_index_end):
                 continue
 
         # 逾期超过 1 天（截止在昨天之前的日期） -> 隐藏
-        if due < yesterday_start:
+        if due_index and due_index < yesterday_index:
             continue
 
         filtered_assignments.append(a)
@@ -427,6 +543,7 @@ def page():
     return render_template('index.html',
         user_name=session.get('name'),
         user_role=role,
+        role_is_teacher=(role == 'teacher'),
         user_classes=user_classes_full,
         primary_class_name=primary_class_name,
         class_number=class_number,
@@ -438,7 +555,7 @@ def page():
         can_create_personal=can_create_personal,
         rep_subjects=rep_subjects,
         default_due_date=default_due_date,
-        get_tomorrow_timestamp=lambda: tomorrow_start,
+        get_tomorrow_timestamp=lambda: tomorrow_index,
         now=time.time(),
         # 日期过滤
         date_filter=date_filter,
@@ -468,13 +585,15 @@ def create_assignment():
 
     if not title:
         flash('请输入作业标题', 'error')
-        return redirect('/page')
+        home_url, _ = get_home_for_role()
+        return redirect(home_url)
 
     user_classes = get_user_classes_for_page(user_id, role)
     class_ids = [uc['class_id'] for uc in user_classes]
     if class_id not in class_ids:
         flash('您不属于该班级', 'error')
-        return redirect('/page')
+        home_url, _ = get_home_for_role()
+        return redirect(home_url)
 
     subject_info = get_subject_info(subject_input)
     subject = subject_info['standard']
@@ -496,32 +615,41 @@ def create_assignment():
         rep_subject_names = [rs['standard_name'] for rs in rep_subjects]
         if not subject_info['is_custom'] and subject not in rep_subject_names:
             flash('您只能创建自己负责科目的作业', 'error')
-            return redirect('/page')
+            home_url, _ = get_home_for_role()
+            return redirect(home_url)
 
     if due_date_str:
-        due_date = int(time.mktime(time.strptime(due_date_str, '%Y-%m-%d')))
+        try:
+            yy = int(due_date_str[0:4]); mm = int(due_date_str[5:7]); dd = int(due_date_str[8:10])
+        except Exception:
+            flash('截止日期格式错误', 'error')
+            home_url, _ = get_home_for_role()
+            return redirect(home_url)
     else:
-        due_date = int(time.time() + 7 * 24 * 3600)
+        dt = datetime.now() + timedelta(days=1)
+        yy, mm, dd = dt.year, dt.month, dt.day
 
     if is_public and role not in ['admin', 'teacher', 'rep']:
         flash('权限不足，无法创建公共作业', 'error')
-        return redirect('/page')
+        home_url, _ = get_home_for_role()
+        return redirect(home_url)
 
     storage._enqueue_write('''
         INSERT INTO assignments
-        (title, description, subject, subject_display, subject_custom,
-         created_by, class_id, is_public, shared_with, pending_invites,
-         created_at, due_date)
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                (title, description, subject, subject_display, subject_custom,
+                 created_by, class_id, is_public, shared_with, pending_invites,
+                 created_at, due_year, due_month, due_day)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     ''', (title, description, subject, subject_display, subject_custom,
-          user_id, class_id, 1 if is_public else 0, '[]', '[]',
-          int(time.time()), due_date),
+                    user_id, class_id, 1 if is_public else 0, '[]', '[]',
+                    int(time.time()), yy, mm, dd),
         cache_keys=['assignments'],
         db='work'
     )
 
     flash(f'✅ 作业 "{title}" 创建成功！', 'success')
-    return redirect('/page')
+    home_url, _ = get_home_for_role()
+    return redirect(home_url)
 
 
 # ==========================================
@@ -540,13 +668,15 @@ def complete_assignment(assignment_id):
     )
     if not assignment:
         flash('作业不存在', 'error')
-        return redirect('/page')
+        home_url, _ = get_home_for_role()
+        return redirect(home_url)
 
     user_classes = storage.get_user_classes(user_id)
     class_ids = [uc['class_id'] for uc in user_classes]
     if assignment['class_id'] not in class_ids:
         flash('您无法完成此作业', 'error')
-        return redirect('/page')
+        home_url, _ = get_home_for_role()
+        return redirect(home_url)
 
     existing = storage._query_one(
         "SELECT id FROM completions WHERE assignment_id = ? AND user_id = ?",
@@ -563,7 +693,8 @@ def complete_assignment(assignment_id):
         )
         flash('✅ 作业已完成！', 'success')
 
-    return redirect('/page')
+    home_url, _ = get_home_for_role()
+    return redirect(home_url)
 
 
 @app.route('/assignment/uncomplete/<int:assignment_id>')
@@ -576,7 +707,8 @@ def uncomplete_assignment(assignment_id):
         db='work'
     )
     flash('🔄 已取消完成状态', 'info')
-    return redirect('/page')
+    home_url, _ = get_home_for_role()
+    return redirect(home_url)
 
 
 @app.route('/assignment/delete/<int:assignment_id>', methods=['GET', 'POST'])
@@ -588,7 +720,8 @@ def delete_assignment(assignment_id):
     assignment = storage._query_one("SELECT * FROM assignments WHERE id = ?", (assignment_id,), db='work')
     if not assignment:
         flash('作业不存在', 'error')
-        return redirect('/page')
+        home_url, _ = get_home_for_role()
+        return redirect(home_url)
 
     can_delete = False
     if role == 'admin':
@@ -600,7 +733,8 @@ def delete_assignment(assignment_id):
 
     if not can_delete:
         flash('权限不足', 'error')
-        return redirect('/page')
+        home_url, _ = get_home_for_role()
+        return redirect(home_url)
 
     if request.method == 'GET':
         return render_template('delete_confirm.html',
@@ -616,7 +750,8 @@ def delete_assignment(assignment_id):
         db='work'
     )
     flash(f'🗑️ 已删除作业 "{assignment["title"]}"', 'info')
-    return redirect('/page')
+    home_url, _ = get_home_for_role()
+    return redirect(home_url)
 
 
 # ==========================================
@@ -663,6 +798,189 @@ def admin_panel():
         total_users=total_users,
         now=time.strftime('%Y-%m-%d %H:%M:%S')
     )
+
+
+# ==========================================
+# 管理员：按班级管理作业
+# ==========================================
+@app.route('/admin/class/<int:class_id>/assignments')
+@require_role(['admin'])
+def admin_class_assignments(class_id):
+    class_info = storage._query_one('SELECT id, name FROM classes WHERE id = ?', (class_id,), db='user')
+    if not class_info:
+        flash('班级不存在', 'error')
+        home_url, _ = get_home_for_role()
+        return redirect(home_url)
+
+    assignments = storage._query(
+        'SELECT * FROM assignments WHERE class_id = ? ORDER BY (due_year*10000 + due_month*100 + due_day) ASC, created_at ASC',
+        (class_id,),
+        db='work'
+    )
+
+    # 填充创建者名称与角色（users 表在 user DB），并过滤掉学生创建的个人作业（is_public == 0）
+    enriched = []
+    for a in assignments:
+        creator_name = '未知'
+        creator_role = None
+        if a.get('created_by'):
+            creator = storage._query_one(
+                "SELECT name, role FROM users WHERE id = ?",
+                (a['created_by'],),
+                db='user'
+            )
+            if creator:
+                creator_name = creator.get('name', '未知')
+                creator_role = creator.get('role')
+        a['creator_name'] = creator_name
+        a['creator_role'] = creator_role
+
+        # 计算 due 字段显示与索引
+        try:
+            y = int(a.get('due_year') or 0)
+            m = int(a.get('due_month') or 0)
+            d = int(a.get('due_day') or 0)
+            if y and m and d:
+                a['due_index'] = y * 10000 + m * 100 + d
+                a['due_ts'] = int(time.mktime(datetime(y, m, d).timetuple()))
+                a['due_date_str'] = f"{y}-{m:02d}-{d:02d}"
+            else:
+                a['due_index'] = 0
+                a['due_ts'] = 0
+                a['due_date_str'] = ''
+        except Exception:
+            a['due_index'] = 0
+            a['due_ts'] = 0
+            a['due_date_str'] = ''
+
+        # 判定是否为学生的个人作业（学生创建且非公开）
+        try:
+            is_public_val = int(a.get('is_public') or 0)
+        except Exception:
+            is_public_val = 0
+
+        if creator_role == 'student' and is_public_val == 0:
+            # 跳过该作业，不加入展示列表
+            continue
+
+        enriched.append(a)
+
+    assignments = enriched
+
+    subjects = storage._query('SELECT id, display_name FROM subjects ORDER BY display_name', db='user')
+    classes = storage._query('SELECT id, name FROM classes ORDER BY name', db='user')
+
+    # 默认截止日期：明天（用于表单预填）
+    default_due_date = (datetime.now() + timedelta(days=1)).strftime('%Y-%m-%d')
+
+    return render_template('admin_class_assignments.html',
+        class_info=class_info,
+        assignments=assignments,
+        subjects=subjects,
+        classes=classes,
+        default_due_date=default_due_date
+    )
+
+
+@app.route('/admin/assignment/create', methods=['POST'])
+@require_role(['admin'])
+def admin_create_assignment():
+    class_id = request.form.get('class_id', type=int)
+    title = request.form.get('title', '').strip()
+    description = request.form.get('description', '').strip()
+    subject_input = request.form.get('subject', '').strip()
+    due_date_str = request.form.get('due_date', '')
+    is_public = request.form.get('is_public') == 'on'
+
+    if not class_id or not title:
+        flash('请填写班级与标题', 'error')
+        return redirect(f'/admin/class/{class_id}/assignments')
+
+    subject_info = get_subject_info(subject_input)
+    subject = subject_info['standard'] or 'general'
+    subject_display = subject_info['display']
+    subject_custom = 1 if subject_info['is_custom'] else 0
+
+    if due_date_str:
+        try:
+            yy = int(due_date_str[0:4]); mm = int(due_date_str[5:7]); dd = int(due_date_str[8:10])
+        except Exception:
+            yy, mm, dd = datetime.now().year, datetime.now().month, datetime.now().day
+    else:
+        nd = datetime.now() + timedelta(days=1)
+        yy, mm, dd = nd.year, nd.month, nd.day
+
+    # 管理员创建的作业默认公开
+    is_public_val = 1
+
+    # 支持批量创建到多个班级：表单字段 other_class_ids（多选）
+    other_class_ids = request.form.getlist('other_class_ids') or []
+    target_class_ids = [class_id] + [int(cid) for cid in other_class_ids if cid and int(cid) != class_id]
+
+    for cid in target_class_ids:
+        storage._enqueue_write('''
+            INSERT INTO assignments (title, description, subject, subject_display, subject_custom, created_by, class_id, is_public, shared_with, pending_invites, created_at, due_year, due_month, due_day)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        ''', (title, description, subject, subject_display, subject_custom, session.get('user_id'), cid, is_public_val, '[]', '[]', int(time.time()), yy, mm, dd),
+            cache_keys=['assignments'],
+            db='work'
+        )
+
+    flash(f'✅ 已为 {len(target_class_ids)} 个班级创建作业', 'success')
+    return redirect(f'/admin/class/{class_id}/assignments')
+
+
+@app.route('/admin/assignment/edit/<int:assignment_id>', methods=['GET', 'POST'])
+@require_role(['admin'])
+def admin_edit_assignment(assignment_id):
+    assignment = storage._query_one('SELECT * FROM assignments WHERE id = ?', (assignment_id,), db='work')
+    if not assignment:
+        flash('作业不存在', 'error')
+        home_url, _ = get_home_for_role()
+        return redirect(home_url)
+
+    if request.method == 'GET':
+        subjects = storage._query('SELECT id, display_name FROM subjects ORDER BY display_name', db='user')
+        return render_template('admin_class_assignments.html', assignment=assignment, subjects=subjects, class_info={'id': assignment['class_id'], 'name': ''})
+
+    # POST: 更新
+    title = request.form.get('title', '').strip()
+    description = request.form.get('description', '').strip()
+    subject_input = request.form.get('subject', '').strip()
+    due_date_str = request.form.get('due_date', '')
+    is_public = request.form.get('is_public') == 'on'
+
+    subject_info = get_subject_info(subject_input)
+    subject = subject_info['standard'] or 'general'
+    subject_display = subject_info['display']
+    subject_custom = 1 if subject_info['is_custom'] else 0
+
+    if due_date_str:
+        try:
+            due_date = int(time.mktime(time.strptime(due_date_str, '%Y-%m-%d')))
+        except Exception:
+            due_date = assignment.get('due_date') or int(time.time())
+    else:
+        due_date = assignment.get('due_date') or int(time.time())
+
+    # 计算年月日
+    try:
+        dt = datetime.fromtimestamp(due_date)
+        dy, dm, dd = dt.year, dt.month, dt.day
+    except Exception:
+        dy = assignment.get('due_year') or None
+        dm = assignment.get('due_month') or None
+        dd = assignment.get('due_day') or None
+
+    storage._enqueue_write(
+        'UPDATE assignments SET title = ?, description = ?, subject = ?, subject_display = ?, subject_custom = ?, is_public = ?, due_date = ?, due_year = ?, due_month = ?, due_day = ? WHERE id = ?',
+        (title, description, subject, subject_display, subject_custom, 1 if is_public else 0, due_date, dy, dm, dd, assignment_id),
+        cache_keys=['assignments'],
+        db='work'
+    )
+
+    flash('✅ 作业已更新', 'success')
+    return redirect(f"/admin/class/{assignment['class_id']}/assignments")
 
 
 # ==========================================
@@ -903,11 +1221,7 @@ def admin_import_users():
             student_id = row[0].strip()
             name = row[1].strip() if len(row) > 1 else student_id
 
-            if len(row) > 2 and row[2].strip():
-                password = row[2].strip()
-            else:
-                password = default_password
-
+            password = row[2].strip() if len(row) > 2 and row[2].strip() else None
             class_str = row[3].strip() if len(row) > 3 else ''
             class_number_str = row[4].strip() if len(row) > 4 else '0'
             class_number_int = int(class_number_str) if class_number_str.isdigit() else 0
@@ -921,11 +1235,19 @@ def admin_import_users():
                     user_id = existing_user['id']
                     print(f"   📌 用户已存在: {student_id} (id={user_id})")
 
-                    storage._execute(
-                        "UPDATE users SET name = ? WHERE id = ?",
-                        (name, user_id),
-                        db='user'
-                    )
+                    if password:
+                        password_hash = bcrypt.hashpw(password.encode('utf-8'), bcrypt.gensalt())
+                        storage._execute(
+                            "UPDATE users SET name = ?, password_hash = ? WHERE id = ?",
+                            (name, password_hash, user_id),
+                            db='user'
+                        )
+                    else:
+                        storage._execute(
+                            "UPDATE users SET name = ? WHERE id = ?",
+                            (name, user_id),
+                            db='user'
+                        )
 
                     storage._execute(
                         "DELETE FROM user_classes WHERE user_id = ?",
@@ -953,7 +1275,8 @@ def admin_import_users():
                                 print(f"   ❌ 班级 '{class_name}' 在 class_cache 中不存在!")
                 else:
                     print(f"   📌 创建新用户: {student_id}")
-                    password_hash = bcrypt.hashpw(password.encode('utf-8'), bcrypt.gensalt())
+                    create_password = password if password else default_password
+                    password_hash = bcrypt.hashpw(create_password.encode('utf-8'), bcrypt.gensalt())
                     storage._execute('''
                         INSERT INTO users (username, student_id, password_hash, role, name, first_login, created_at)
                         VALUES (?, ?, ?, ?, ?, ?, ?)
@@ -1187,30 +1510,69 @@ def admin_create_subject():
 def admin_export_assignments():
     """导出过期作业为 CSV，参数：days（可选，默认 config.CLEANUP_EXPIRED_DAYS）"""
     days = request.args.get('days', type=int) or config.CLEANUP_EXPIRED_DAYS
-    cutoff = int(time.time()) - days * 86400
+    fmt = request.args.get('format', 'csv').lower()
+    cutoff_date = datetime.now() - timedelta(days=days)
+    cutoff_index = cutoff_date.year * 10000 + cutoff_date.month * 100 + cutoff_date.day
 
     assignments = storage._query(
-        "SELECT * FROM assignments WHERE due_date < ? ORDER BY due_date",
-        (cutoff,),
+        "SELECT * FROM assignments WHERE (due_year*10000 + due_month*100 + due_day) < ? ORDER BY (due_year*10000 + due_month*100 + due_day)",
+        (cutoff_index,),
         db='work'
     )
 
-    output = io.StringIO()
-    writer = csv.writer(output)
-    writer.writerow(['id', 'title', 'subject', 'subject_display', 'created_by', 'class_id', 'is_public', 'created_at', 'due_date'])
+    # 先计算每条记录的 due_date_str（YYYY-MM-DD）
+    rows = []
     for a in assignments:
-        writer.writerow([
+        try:
+            y = int(a.get('due_year') or 0)
+            m = int(a.get('due_month') or 0)
+            d = int(a.get('due_day') or 0)
+            due_str = f"{y}-{m:02d}-{d:02d}" if y and m and d else ''
+        except Exception:
+            due_str = ''
+        rows.append([
             a.get('id'), a.get('title'), a.get('subject'), a.get('subject_display'),
-            a.get('created_by'), a.get('class_id'), a.get('is_public'), a.get('created_at'), a.get('due_date')
+            a.get('created_by'), a.get('class_id'), a.get('is_public'), a.get('created_at'), due_str
         ])
 
-    output.seek(0)
-    return send_file(
-        io.BytesIO(output.getvalue().encode('utf-8-sig')),
-        mimetype='text/csv',
-        as_attachment=True,
-        download_name=f'assignments_expired_{days}d.csv'
-    )
+    compress = request.args.get('compress', '').lower()  # '', 'zip', 'tar.gz'
+
+    if fmt == 'json':
+        body = json.dumps(rows, ensure_ascii=False)
+        filename = f'assignments_expired_{days}d.json'
+        mimetype = 'application/json'
+        data_bytes = body.encode('utf-8')
+    else:
+        # CSV
+        output = io.StringIO()
+        writer = csv.writer(output)
+        writer.writerow(['id', 'title', 'subject', 'subject_display', 'created_by', 'class_id', 'is_public', 'created_at', 'due_date'])
+        for r in rows:
+            writer.writerow(r)
+        output.seek(0)
+        data_bytes = output.getvalue().encode('utf-8-sig')
+        filename = f'assignments_expired_{days}d.csv'
+        mimetype = 'text/csv'
+
+    # 压缩选项
+    if compress in ('zip', 'zipfile'):
+        import zipfile
+        buf = io.BytesIO()
+        with zipfile.ZipFile(buf, 'w', compression=zipfile.ZIP_DEFLATED) as zf:
+            zf.writestr(filename, data_bytes)
+        buf.seek(0)
+        return send_file(buf, mimetype='application/zip', as_attachment=True, download_name=filename + '.zip')
+    elif compress in ('tar.gz', 'tgz'):
+        import tarfile
+        buf = io.BytesIO()
+        with tarfile.open(fileobj=buf, mode='w:gz') as tf:
+            info = tarfile.TarInfo(name=filename)
+            info.size = len(data_bytes)
+            tf.addfile(info, io.BytesIO(data_bytes))
+        buf.seek(0)
+        return send_file(buf, mimetype='application/gzip', as_attachment=True, download_name=filename + '.tar.gz')
+    else:
+        return send_file(io.BytesIO(data_bytes), mimetype=mimetype, as_attachment=True, download_name=filename)
 
 
 @app.route('/admin/assignments/cleanup', methods=['POST'])
@@ -1219,11 +1581,12 @@ def admin_cleanup_assignments():
     """将过期作业移入 recycle_bin 并删除，参数：days（可选），reason（可选）"""
     days = request.form.get('days', type=int) or config.CLEANUP_EXPIRED_DAYS
     reason = request.form.get('reason', '').strip() or '管理员清理'
-    cutoff = int(time.time()) - days * 86400
+    cutoff_date = datetime.now() - timedelta(days=days)
+    cutoff_index = cutoff_date.year * 10000 + cutoff_date.month * 100 + cutoff_date.day
 
     assignments = storage._query(
-        "SELECT * FROM assignments WHERE due_date < ?",
-        (cutoff,),
+        "SELECT * FROM assignments WHERE (due_year*10000 + due_month*100 + due_day) < ?",
+        (cutoff_index,),
         db='work'
     )
 
@@ -1494,12 +1857,13 @@ def teacher_assign_rep():
 @app.route('/monitor')
 @require_role(['technician', 'admin'])
 def monitor():
+    storage.cleanup_old_resolved_errors(5)
     today = time.strftime('%Y-%m-%d')
     stats = storage.get_daily_stats(today) or {}
     if not stats:
         stats = {'total_visits': 0, 'total_operations': 0, 'total_errors': 0, 'avg_response_ms': 0}
     op_stats = storage.get_operation_stats(today)
-    errors = storage.get_recent_errors(20)
+    unresolved_errors = storage.get_recent_errors(20, resolved=False)
     operations = storage.get_recent_operations(50)
 
     yesterday = time.strftime('%Y-%m-%d', time.localtime(time.time() - 86400))
@@ -1511,7 +1875,7 @@ def monitor():
     return render_template('monitor.html',
         stats={'total_visits': stats.get('total_visits', 0), 'total_operations': stats.get('total_operations', 0), 'total_errors': stats.get('total_errors', 0), 'avg_response_ms': stats.get('avg_response_ms', 0), 'visits_change': visits_change},
         op_stats=op_stats,
-        errors=errors,
+        unresolved_errors=unresolved_errors,
         operations=operations,
         now=time.strftime('%Y-%m-%d %H:%M:%S')
     )
@@ -1520,9 +1884,84 @@ def monitor():
 @app.route('/resolve_error/<int:error_id>')
 @require_role(['technician', 'admin'])
 def resolve_error(error_id):
-    storage._execute("UPDATE error_logs SET resolved = 1 WHERE id = ?", (error_id,), db='work')
+    storage._execute("UPDATE error_logs SET resolved = 1 WHERE id = ?", (error_id,), db='log')
     flash('✅ 错误已标记为已解决', 'success')
+    next_page = request.args.get('next', '/monitor')
+    if next_page not in ['/monitor', '/monitor/errors']:
+        next_page = '/monitor'
+    return redirect(next_page)
+
+
+@app.route('/monitor/batch', methods=['POST'])
+@require_role(['technician', 'admin'])
+def monitor_batch():
+    error_ids = request.form.getlist('error_ids')
+    action = request.form.get('action')
+    if not error_ids:
+        flash('⚠️ 请先选择至少一条异常', 'error')
+        return redirect('/monitor')
+
+    try:
+        ids = [int(eid) for eid in error_ids if eid.isdigit()]
+    except ValueError:
+        flash('⚠️ 选择的异常ID格式不正确', 'error')
+        return redirect('/monitor')
+
+    if not ids:
+        flash('⚠️ 没有有效的异常ID', 'error')
+        return redirect('/monitor')
+
+    placeholders = ','.join('?' for _ in ids)
+    if action == 'resolve':
+        storage._execute(f"UPDATE error_logs SET resolved = 1 WHERE id IN ({placeholders})", tuple(ids), db='log')
+        flash('✅ 已标记选中异常为已解决', 'success')
+    elif action == 'delete':
+        storage._execute(f"DELETE FROM error_logs WHERE id IN ({placeholders})", tuple(ids), db='log')
+        flash('✅ 已删除选中异常', 'success')
+    else:
+        flash('⚠️ 未知批量操作', 'error')
+
     return redirect('/monitor')
+
+@app.route('/monitor/errors')
+@require_role(['technician', 'admin'])
+def monitor_all_errors():
+    errors = storage.get_errors()
+    return render_template('all_errors.html',
+        errors=errors,
+        now=time.strftime('%Y-%m-%d %H:%M:%S')
+    )
+
+@app.route('/monitor/errors/batch', methods=['POST'])
+@require_role(['technician', 'admin'])
+def monitor_all_errors_batch():
+    error_ids = request.form.getlist('error_ids')
+    action = request.form.get('action')
+    if not error_ids:
+        flash('⚠️ 请先选择至少一条异常', 'error')
+        return redirect('/monitor/errors')
+
+    try:
+        ids = [int(eid) for eid in error_ids if eid.isdigit()]
+    except ValueError:
+        flash('⚠️ 选择的异常ID格式不正确', 'error')
+        return redirect('/monitor/errors')
+
+    if not ids:
+        flash('⚠️ 没有有效的异常ID', 'error')
+        return redirect('/monitor/errors')
+
+    placeholders = ','.join('?' for _ in ids)
+    if action == 'resolve':
+        storage._execute(f"UPDATE error_logs SET resolved = 1 WHERE id IN ({placeholders})", tuple(ids), db='log')
+        flash('✅ 已标记选中异常为已解决', 'success')
+    elif action == 'delete':
+        storage._execute(f"DELETE FROM error_logs WHERE id IN ({placeholders})", tuple(ids), db='log')
+        flash('✅ 已删除选中异常', 'success')
+    else:
+        flash('⚠️ 未知批量操作', 'error')
+
+    return redirect('/monitor/errors')
 
 
 # ==========================================

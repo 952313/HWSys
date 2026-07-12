@@ -171,12 +171,12 @@ class Assignment:
         shared_with: 已同意分享的用户ID列表（JSON）
         pending_invites: 等待同意的用户ID列表（JSON）
         created_at: 创建时间戳
-        due_date: 截止日期时间戳
+        due_year/due_month/due_day: 截止日期（按天存储）
     """
     def __init__(self, id=None, title=None, description=None,
                  created_by=None, class_id=None, subject_id=None,
                  is_public=False, shared_with=None, pending_invites=None,
-                 created_at=None, due_date=None):
+                 created_at=None, due_year=None, due_month=None, due_day=None):
         self.id = id
         self.title = title
         self.description = description
@@ -187,7 +187,9 @@ class Assignment:
         self.shared_with = shared_with or []
         self.pending_invites = pending_invites or []
         self.created_at = created_at or int(time.time())
-        self.due_date = due_date or int(time.time()) + 7*24*3600
+        self.due_year = due_year
+        self.due_month = due_month
+        self.due_day = due_day
     
     def to_dict(self):
         return {
@@ -201,7 +203,9 @@ class Assignment:
             'shared_with': json.dumps(self.shared_with),
             'pending_invites': json.dumps(self.pending_invites),
             'created_at': self.created_at,
-            'due_date': self.due_date
+            'due_year': self.due_year,
+            'due_month': self.due_month,
+            'due_day': self.due_day
         }
     
     @classmethod
@@ -217,7 +221,9 @@ class Assignment:
             shared_with=json.loads(data.get('shared_with', '[]')),
             pending_invites=json.loads(data.get('pending_invites', '[]')),
             created_at=data.get('created_at'),
-            due_date=data.get('due_date')
+            due_year=data.get('due_year'),
+            due_month=data.get('due_month'),
+            due_day=data.get('due_day')
         )
 
 

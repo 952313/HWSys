@@ -1,0 +1,103 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>📂 全部异常 - 系统监控</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Arial, sans-serif; background: #f0f2f5; padding: 20px; }
+        .container { max-width: 1200px; margin: 0 auto; }
+        .header { background: linear-gradient(135deg, #2d3748 0%, #1a202c 100%); color: white; padding: 20px 30px; border-radius: 12px; margin-bottom: 20px; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; }
+        .header h1 { font-size: 22px; }
+        .header .time { font-size: 13px; opacity: 0.8; }
+        .header .time a { color: white; opacity: 0.6; margin-left: 15px; text-decoration: none; }
+        .header .time a:hover { opacity: 1; }
+        .card { background: white; border-radius: 12px; box-shadow: 0 2px 8px rgba(0,0,0,0.06); overflow: hidden; margin-bottom: 20px; }
+        .card-header { padding: 14px 18px; border-bottom: 1px solid #e2e8f0; font-weight: 600; font-size: 14px; display: flex; justify-content: space-between; align-items: center; }
+        .card-body { padding: 14px 18px; }
+        .log-item { padding: 12px 0; border-bottom: 1px solid #f7fafc; font-size: 13px; display: flex; justify-content: space-between; align-items: center; gap: 10px; }
+        .log-item:last-child { border-bottom: none; }
+        .badge { padding: 2px 10px; border-radius: 12px; font-size: 11px; font-weight: 500; white-space: nowrap; }
+        .badge-red { background: #fed7d7; color: #9b2c2c; }
+        .badge-green { background: #c6f6d5; color: #276749; }
+        .badge-yellow { background: #fefcbf; color: #975a16; }
+        .badge-blue { background: #bee3f8; color: #2a69ac; }
+        .badge-gray { background: #e2e8f0; color: #4a5568; }
+        .btn { padding: 6px 16px; border: none; border-radius: 6px; font-size: 13px; cursor: pointer; color: white; background: #667eea; transition: all 0.2s; text-decoration: none; display: inline-block; }
+        .btn:hover { opacity: 0.9; }
+        .btn-green { background: #48bb78; }
+        .btn-red { background: #fc8181; }
+        .btn-gray { background: #a0aec0; }
+        .btn-blue { background: #4299e1; }
+        .empty-state { text-align: center; padding: 25px; color: #a0aec0; font-size: 14px; }
+        .action-bar { display: flex; gap: 10px; flex-wrap: wrap; margin-bottom: 16px; }
+        .flash-messages { margin-bottom: 16px; }
+        .flash { padding: 10px 18px; border-radius: 8px; margin-bottom: 8px; font-weight: 500; font-size: 14px; }
+        .flash-success { background: #c6f6d5; color: #276749; border-left: 4px solid #48bb78; }
+        .flash-error { background: #fed7d7; color: #9b2c2c; border-left: 4px solid #fc8181; }
+        .flash-info { background: #bee3f8; color: #2a69ac; border-left: 4px solid #667eea; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <div>
+                <h1>📂 全部异常</h1>
+                <span>包含未解决与已解决异常</span>
+            </div>
+            <div class="time">
+                🕐 {{ now }}
+                <a href="/monitor" style="color:white;">🔙 返回监控</a>
+                <a href="/admin" style="color:white;">🏠 管理后台</a>
+                <a href="/logout" style="color:white;">退出</a>
+            </div>
+        </div>
+
+        {% with messages = get_flashed_messages(with_categories=true) %}
+            {% if messages %}
+                <div class="flash-messages">
+                    {% for category, message in messages %}
+                        <div class="flash flash-{{ category }}">{{ message }}</div>
+                    {% endfor %}
+                </div>
+            {% endif %}
+        {% endwith %}
+
+        <div class="card">
+            <div class="card-header">
+                全部异常列表
+                <span class="badge badge-gray">共 {{ errors|length }} 条</span>
+            </div>
+            <div class="card-body">
+                {% if errors %}
+                    <form method="POST" action="/monitor/errors/batch">
+                        <div class="action-bar">
+                            <button type="submit" name="action" value="resolve" class="btn btn-green">标记已解决</button>
+                            <button type="submit" name="action" value="delete" class="btn btn-red">删除选中</button>
+                        </div>
+                        {% for err in errors %}
+                            <div class="log-item">
+                                <label style="display:flex; align-items:center; gap:10px; flex:1; min-width:0;">
+                                    <input type="checkbox" name="error_ids" value="{{ err.id }}">
+                                    <span class="badge {% if err.resolved %}badge-green{% else %}badge-red{% endif %}">{{ err.resolved and '已解决' or '未解决' }}</span>
+                                    <div style="flex:1; min-width:0;">
+                                        <div style="font-size:13px; color:#333;">{{ err.error_type }}：{{ err.error_message[:60] }}{% if err.error_message|length > 60 %}...{% endif %}</div>
+                                        <div style="font-size:11px; color:#888; margin-top:4px;">{{ err.path }} · {{ err.created_at|format_timestamp }}</div>
+                                    </div>
+                                </label>
+                                <div style="text-align:right; display:flex; flex-direction:column; gap:6px;">
+                                    <a class="btn btn-gray" href="/resolve_error/{{ err.id }}?next=/monitor/errors">标记已解决</a>
+                                    <a class="btn btn-red" href="/monitor/errors/batch?error_ids={{ err.id }}&action=delete" onclick="event.preventDefault(); this.closest('form').querySelector('input[name=error_ids][value=\'{{ err.id }}\']').checked = true; this.closest('form').submit();">删除</a>
+                                </div>
+                            </div>
+                        {% endfor %}
+                    </form>
+                {% else %}
+                    <div class="empty-state">暂无异常记录</div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</body>
+</html>

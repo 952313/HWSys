@@ -18,9 +18,9 @@ PORT = 5000
 # ==========================================
 # 2. 数据库配置
 # ==========================================
-USER_DB_PATH = 'school_user.db'
-CURRENT_SCHOOL_YEAR = '2025-2026'
-WORK_DB_PATH = f'school_work_{CURRENT_SCHOOL_YEAR}.db'
+USER_DB_PATH = 'user.db'
+WORK_DB_PATH = 'hw.db'
+LOG_DB_PATH = 'log.db'
 WRITE_QUEUE_MAX = 1000  # ✅ 写入队列最大容量
 
 # ==========================================
@@ -59,21 +59,18 @@ DEFAULT_ADMIN_NAME = '系统管理员'
 # 8. 预设科目 (标准名, 显示名): [别名列表]
 # ==========================================
 PRESET_SUBJECTS = {
-    ('chinese', '语文'): ['中文', '中国语文', '国文', 'Chinese'],
-    ('math', '数学'): ['Math', 'Mathematics', '算术', '代数'],
-    ('english', '英语'): ['英文', 'English', '外语'],
-    ('physics', '物理'): ['Physics', '物理学'],
-    ('chemistry', '化学'): ['Chemistry'],
-    ('biology', '生物'): ['Biology', '生物学'],
-    ('history', '历史'): ['History', '历史学'],
-    ('geography', '地理'): ['Geography', '地理学'],
-    ('politics', '政治'): ['Politics', '思想政治'],
-    ('art', '美术'): ['Art', '艺术', '绘画'],
-    ('music', '音乐'): ['Music', '声乐'],
-    ('pe', '体育'): ['PE', 'Physical Education', '运动'],
-    ('it', '信息技术'): ['IT', '计算机', '电脑'],
-    ('science', '科学'): ['Science', '自然科学'],
-    ('social', '社会'): ['Social', '社会学'],
+    ('chinese', '中文'): ['语文', '中国语文', '国文', 'Chinese'],
+    ('math', 'Math'): ['数学', 'Mathematics', '算术', '代数'],
+    ('english', 'English'): ['英文', '英语', '外语'],
+    ('history', 'History'): ['西方历史', '历史学', '历史', '西史'],
+    ('geography', 'Geography'): ['地理', '地理学'],
+    ('ces', 'CES'): ['Citizenship,economics and Society', '公民、经济与社会', '公经社'],
+    ('art', 'VA'): ['Visual Art', '艺术', '绘画', '美术'],
+    ('music', 'Music'): ['音乐', '声乐'],
+    ('pe', 'P.E.'): ['PE', '体育', 'Physical Education', '运动'],
+    ('ctc', 'C&T-C'): ['计算机', '电脑'],
+    ('ctt', 'C&T-T'): ['电脑技术', '计算机', '电脑'],
+    ('science', 'I.S.'): ['Integrated Science', '综合科学', '科学']
 }
 
 # ==========================================

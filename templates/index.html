@@ -390,6 +390,7 @@
                 {% if session.role == 'technician' %}
                     <a href="/monitor" class="btn btn-blue btn-sm">📊 监控</a>
                 {% endif %}
+                <a href="/change_password" class="btn btn-gray btn-sm">🔑 修改密码</a>
                 <a href="/logout" class="btn btn-gray btn-sm">退出</a>
             </div>
         </div>
@@ -470,14 +471,18 @@
                     {% if date_filter_type == 'due' %}截止{% else %}创建{% endif %}
                     的作业
                 {% else %}
-                    ⏳ 待完成
+                    {% if role_is_teacher %}
+                        📋 作业列表
+                    {% else %}
+                        ⏳ 待完成
+                    {% endif %}
                 {% endif %}
                 <span class="count">{{ pending|length }} 个作业</span>
             </h3>
 
             {% if pending %}
-                {% for a in pending|sort(attribute='due_date') %}
-                    {% set is_urgent = a.due_date and a.due_date < get_tomorrow_timestamp() %}
+                {% for a in pending|sort(attribute='due_index') %}
+                    {% set is_urgent = a.due_index and a.due_index < get_tomorrow_timestamp() %}
                     {% set class_name = '' %}
                     {% for uc in user_classes %}
                         {% if uc.class_id == a.class_id %}
@@ -488,7 +493,7 @@
                     <div class="assignment-item {% if is_urgent %}urgent{% endif %}">
                         <div>
                             <div class="title">
-                                #{{ a.id }} {{ a.title }}
+                                {% if a.id %}#{{ a.id }}{% else %}个人作业{% endif %} {{ a.title }}
                                 {% if is_urgent %}
                                     <span class="status-urgent">🔥 紧急</span>
                                 {% endif %}
@@ -499,7 +504,7 @@
                                 {% endif %}
                             </div>
                             <div class="meta">
-                                📅 截止: {{ a.due_date|format_date }}
+                                📅 截止: {{ a.due_date_str }}
                                 {% if a.subject_display %}
                                     · <span class="subject-tag {{ 'standard' if not a.subject_custom else 'custom' }}">
                                         {{ a.subject_display }}
@@ -513,7 +518,9 @@
                             </div>
                         </div>
                         <div class="actions">
-                            <span class="status-pending">⏳ 待完成</span>
+                            {% if session.role != 'teacher' %}
+                                <span class="status-pending">⏳ 待完成</span>
+                            {% endif %}
                             {% if session.role in ['student', 'rep'] %}
                                 <a href="/assignment/complete/{{ a.id }}" class="btn btn-green btn-sm">✅ 完成</a>
                             {% endif %}
@@ -557,7 +564,7 @@
                     <span class="count">{{ done|length }} 个作业</span>
                 </h3>
 
-                {% for a in done|sort(attribute='due_date') %}
+                {% for a in done|sort(attribute='due_index') %}
                     {% set class_name = '' %}
                     {% for uc in user_classes %}
                         {% if uc.class_id == a.class_id %}
@@ -576,7 +583,7 @@
                                 {% endif %}
                             </div>
                             <div class="meta">
-                                📅 截止: {{ a.due_date|format_date }}
+                                📅 截止: {{ a.due_date_str }}
                                 {% if a.subject_display %}
                                     · <span class="subject-tag {{ 'standard' if not a.subject_custom else 'custom' }}">
                                         {{ a.subject_display }}
@@ -609,13 +616,13 @@
                 <div class="section-title">📋 所有班级作业（管理员视角）</div>
                 <div class="card" style="box-shadow: 0 2px 10px rgba(102,126,234,0.1); border: 1px solid #e2e8f0;">
                     <div style="max-height:400px; overflow-y:auto;">
-                        {% for a in all_class_assignments|sort(attribute='due_date') %}
-                            {% set is_urgent = a.due_date and a.due_date < get_tomorrow_timestamp() %}
+                            {% for a in all_class_assignments|sort(attribute='due_index') %}
+                                {% set is_urgent = a.due_index and a.due_index < get_tomorrow_timestamp() %}
                             <!--No Problem Here, only editor problem.-->
                             <div class="assignment-item {% if is_urgent %}urgent{% endif %}" style="border-left-color: {% if a.is_public %}#667eea{% else %}#a0aec0{% endif %};">
                                 <div>
                                     <div class="title">
-                                        #{{ a.id }} {{ a.title }}
+                                        {% if a.id %}#{{ a.id }}{% else %}个人作业{% endif %} {{ a.title }}
                                         {% if is_urgent %}<span class="status-urgent">🔥 紧急</span>{% endif %}
                                         <span style="font-size:11px; color:#888;">
                                             ({{ a.class_name or '未分配班级' }})
@@ -625,7 +632,7 @@
                                         {% endif %}
                                     </div>
                                     <div class="meta">
-                                        📅 截止: {{ a.due_date|format_date }}
+                                        📅 截止: {{ a.due_date_str }}
                                         {% if a.subject_display %}
                                             · <span class="subject-tag {{ 'standard' if not a.subject_custom else 'custom' }}">
                                                 {{ a.subject_display }}
@@ -635,9 +642,11 @@
                                     </div>
                                 </div>
                                 <div class="actions">
+                                    {% if not role_is_teacher %}
                                     <span class="{% if a.id in completed_ids %}status-done{% else %}status-pending{% endif %}">
                                         {% if a.id in completed_ids %}✅ 已完成{% else %}⏳ 待完成{% endif %}
                                     </span>
+                                    {% endif %}
                                     <a href="/assignment/delete/{{ a.id }}" class="btn btn-red btn-sm" onclick="return confirm('确定删除此作业？')">🗑️</a>
                                 </div>
                             </div>

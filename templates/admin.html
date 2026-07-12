@@ -132,6 +132,7 @@
             <div class="actions">
                 <!-- 首页按钮已移除，管理后台就是首页 -->
                 <a href="/monitor" class="btn btn-purple">📊 监控</a>
+                <a href="/change_password" class="btn btn-gray">🔑 修改密码</a>
                 <a href="/logout" class="btn btn-gray">🚪 退出</a>
             </div>
         </div>
@@ -235,7 +236,7 @@
             <form method="POST" action="/admin/class/create" style="display:flex; gap:12px; align-items:end; flex-wrap:wrap;">
                 <div class="form-group" style="flex:1; min-width:200px;">
                     <label>班级名称</label>
-                    <input type="text" name="name" placeholder="高一(1)班" required>
+                    <input type="text" name="name" placeholder="1A" required>
                 </div>
                 <button type="submit" class="btn btn-blue">创建班级</button>
             </form>
@@ -244,11 +245,42 @@
                     {% for c in classes %}
                         <span style="background:#f7fafc; padding:4px 14px; border-radius:12px; font-size:13px; display:flex; align-items:center; gap:8px;">
                             {{ c.name }}
+                            <a href="/admin/class/{{ c.id }}/assignments" class="btn btn-sm btn-blue" style="margin-left:8px;">管理作业</a>
                             <a href="/admin/class/delete/{{ c.id }}" onclick="return confirm('确定删除？')" style="color:#fc8181; text-decoration:none;">×</a>
                         </span>
                     {% endfor %}
                 </div>
             {% endif %}
+        </div>
+
+        <!-- ====== 导出作业 ====== -->
+        <div class="card">
+            <h3>📤 导出作业</h3>
+            <p class="sub">导出早于指定天数的作业。支持 CSV/JSON，并可选择压缩为 .zip 或 .tar.gz。</p>
+            <form method="GET" action="/admin/assignments/export" style="display:flex; gap:12px; align-items:center; flex-wrap:wrap;">
+                <div class="form-group">
+                    <label>天数（早于 N 天）</label>
+                    <input type="number" name="days" value="30" style="width:120px;">
+                </div>
+                <div class="form-group">
+                    <label>格式</label>
+                    <select name="format">
+                        <option value="csv">CSV</option>
+                        <option value="json">JSON（数组）</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label>压缩</label>
+                    <select name="compress">
+                        <option value="">无</option>
+                        <option value="zip">ZIP (.zip)</option>
+                        <option value="tar.gz">TAR.GZ (.tar.gz)</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <button type="submit" class="btn btn-blue">导出</button>
+                </div>
+            </form>
         </div>
 
         <!-- ====== 科目管理 ====== -->
@@ -257,7 +289,7 @@
             <form method="POST" action="/admin/subject/create" style="display:flex; gap:12px; align-items:end; flex-wrap:wrap;">
                 <div class="form-group" style="flex:1; min-width:150px;">
                     <label>科目名称</label>
-                    <input type="text" name="name" placeholder="数学" required>
+                    <input type="text" name="name" placeholder="Math" required>
                 </div>
                 <button type="submit" class="btn btn-blue">添加科目</button>
             </form>

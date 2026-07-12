@@ -175,6 +175,7 @@
                     {% endif %}
                     <!-- 技术员不显示首页按钮，因为已经在监控面板 -->
                 {% endif %}
+                <a href="/change_password">🔑 修改密码</a>
                 <a href="/logout">退出</a>
             </div>
         </div>
@@ -215,6 +216,7 @@
 
         <div class="action-bar">
             <button class="refresh-btn" onclick="location.reload()">🔄 刷新</button>
+            <a href="/monitor/errors" class="btn btn-blue" style="padding:6px 16px; font-size:13px;">📂 查看全部异常</a>
             <a href="/admin" class="btn btn-gray" style="padding:6px 16px; font-size:13px;">⚙️ 管理后台</a>
         </div>
 
@@ -252,29 +254,41 @@
             <div class="card">
                 <div class="card-header">
                     🔥 最近异常
-                    <span class="badge badge-red">{{ errors|length }}</span>
+                    <span class="badge badge-red">{{ unresolved_errors|length }}</span>
                 </div>
                 <div class="card-body">
-                    {% if errors %}
-                        {% for err in errors %}
-                            <div class="log-item">
-                                <div style="flex:1; min-width:0;">
-                                    <span class="badge badge-red">{{ err.error_type }}</span>
-                                    <span style="font-size:12px; color:#333;">{{ err.error_message[:40] }}{% if err.error_message|length > 40 %}...{% endif %}</span>
-                                    <div style="font-size:10px; color:#888;">{{ err.path }}</div>
-                                </div>
-                                <div style="text-align:right; flex-shrink:0;">
-                                    <div style="font-size:10px; color:#888;">{{ err.created_at|format_timestamp }}</div>
-                                    {% if not err.resolved %}
-                                        <a href="/resolve_error/{{ err.id }}" class="btn btn-green" style="font-size:10px;">已解决</a>
-                                    {% else %}
-                                        <span class="badge badge-green">已解决</span>
-                                    {% endif %}
-                                </div>
+                    {% if unresolved_errors %}
+                        <form method="POST" action="/monitor/batch" id="monitorBatchForm">
+                            <div class="action-bar" style="margin-bottom:12px;">
+                                <label>
+                                    <input type="checkbox" id="selectAll" onchange="toggleAll(this)"> 全选
+                                </label>
+                                <button type="button" class="btn btn-gray" onclick="invertSelection()" style="font-size:11px;">反选</button>
+                                <button type="button" class="btn btn-gray" onclick="clearSelection()" style="font-size:11px;">清空</button>
+                                <button type="submit" name="action" value="resolve" class="btn btn-green" style="font-size:11px;">批量标记已解决</button>
+                                <button type="submit" name="action" value="delete" class="btn btn-red" style="font-size:11px;">批量删除</button>
+                                <span id="selectedCount" style="color:#666; font-size:12px; margin-left:8px;">已选 0 项</span>
                             </div>
-                        {% endfor %}
+                            {% for err in unresolved_errors %}
+                                <div class="log-item">
+                                    <label style="display:flex; align-items:center; gap:8px; flex:1; min-width:0;">
+                                        <input type="checkbox" name="error_ids" value="{{ err.id }}" class="error-checkbox" onchange="updateCount()">
+                                        <span class="badge badge-red">{{ err.error_type }}</span>
+                                        <span style="font-size:12px; color:#333; flex:1; min-width:0;">{{ err.error_message[:40] }}{% if err.error_message|length > 40 %}...{% endif %}</span>
+                                        <span style="font-size:10px; color:#888;">{{ err.path }}</span>
+                                    </label>
+                                    <div style="text-align:right; flex-shrink:0; display:flex; flex-direction:column; align-items:flex-end; gap:6px;">
+                                        <div style="font-size:10px; color:#888;">{{ err.created_at|format_timestamp }}</div>
+                                        <div style="display:flex; gap:6px;">
+                                            <button type="button" class="btn btn-gray" onclick="showDetail({{ err.id }})" style="font-size:10px;">详情</button>
+                                            <a href="/resolve_error/{{ err.id }}" class="btn btn-green" style="font-size:10px;">已解决</a>
+                                        </div>
+                                    </div>
+                                </div>
+                            {% endfor %}
+                        </form>
                     {% else %}
-                        <div class="empty-state">🎉 暂无异常</div>
+                        <div class="empty-state">🎉 暂无未解决异常</div>
                     {% endif %}
                 </div>
             </div>
@@ -354,6 +368,93 @@
         }
         setInterval(fetchSystemStatus, 1000);
         fetchSystemStatus();
+
+        function toggleAll(source) {
+            const checkboxes = document.querySelectorAll('.error-checkbox');
+            checkboxes.forEach(cb => cb.checked = source.checked);
+            updateCount();
+        }
+
+        function invertSelection() {
+            const checkboxes = document.querySelectorAll('.error-checkbox');
+            checkboxes.forEach(cb => cb.checked = !cb.checked);
+            updateCount();
+        }
+
+        function clearSelection() {
+            const checkboxes = document.querySelectorAll('.error-checkbox');
+            checkboxes.forEach(cb => cb.checked = false);
+            const selectAll = document.getElementById('selectAll');
+            if (selectAll) selectAll.checked = false;
+            updateCount();
+        }
+
+        function updateCount() {
+            const selected = document.querySelectorAll('.error-checkbox:checked').length;
+            const selectedCount = document.getElementById('selectedCount');
+            if (selectedCount) {
+                selectedCount.textContent = '已选 ' + selected + ' 项';
+            }
+            const selectAll = document.getElementById('selectAll');
+            if (selectAll) {
+                selectAll.checked = selected > 0 && selected === document.querySelectorAll('.error-checkbox').length;
+            }
+        }
+
+        function showDetail(errorId) {
+            const modal = document.getElementById('errorDetailModal');
+            const detailBox = document.getElementById('errorDetailContent');
+            const error = window.monitorErrors?.find(e => e.id === errorId);
+            if (!error) {
+                detailBox.textContent = '无法找到该异常详情。';
+            } else {
+                detailBox.innerHTML = `
+                    <div style="font-weight:600; margin-bottom:12px;">${escapeHtml(error.error_type)}</div>
+                    <div style="margin-bottom:8px;"><strong>消息：</strong>${escapeHtml(error.error_message)}</div>
+                    <div style="margin-bottom:8px;"><strong>路径：</strong>${escapeHtml(error.path)}</div>
+                    <div style="margin-bottom:8px;"><strong>用户ID：</strong>${escapeHtml(error.user_id || '-')}  IP：${escapeHtml(error.ip || '-')}</div>
+                    <div style="margin-bottom:8px;"><strong>时间：</strong>${escapeHtml(error.created_at)}</div>
+                    <div style="white-space:pre-wrap; background:#f7fafc; padding:12px; border-radius:8px; color:#333; overflow-x:auto;">${escapeHtml(error.stack_trace || '-')}</div>
+                `;
+            }
+            modal.style.display = 'flex';
+        }
+
+        function closeModal() {
+            document.getElementById('errorDetailModal').style.display = 'none';
+        }
+
+        function escapeHtml(text) {
+            return String(text)
+                .replace(/&/g, '&amp;')
+                .replace(/</g, '&lt;')
+                .replace(/>/g, '&gt;')
+                .replace(/"/g, '&quot;')
+                .replace(/'/g, '&#039;');
+        }
+
+        window.monitorErrors = [
+            {% for err in unresolved_errors %}
+                {
+                    id: {{ err.id }},
+                    error_type: {{ err.error_type|tojson }},
+                    error_message: {{ err.error_message|tojson }},
+                    stack_trace: {{ err.stack_trace|tojson }},
+                    path: {{ err.path|tojson }},
+                    user_id: {{ err.user_id|tojson }},
+                    ip: {{ err.ip|tojson }},
+                    created_at: {{ err.created_at|format_timestamp|tojson }}
+                },
+            {% endfor %}
+        ];
     </script>
+
+    <div class="modal" id="errorDetailModal" style="display:none; position:fixed; top:0; left:0; right:0; bottom:0; background:rgba(0,0,0,0.55); justify-content:center; align-items:center; z-index:1000;">
+        <div style="background:white; border-radius:12px; width:min(95%,800px); max-height:90%; overflow:auto; padding:24px; position:relative;">
+            <button onclick="closeModal()" style="position:absolute; top:14px; right:14px; border:none; background:#f56565; color:white; border-radius:50%; width:28px; height:28px; cursor:pointer;">×</button>
+            <h2 style="margin-bottom:16px; font-size:18px;">异常详情</h2>
+            <div id="errorDetailContent" style="font-size:14px; line-height:1.6; color:#2d3748;"></div>
+        </div>
+    </div>
 </body>
 </html>
