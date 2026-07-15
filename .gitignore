@@ -1,3 +1,8 @@
 hw.db
 log.db
 user.db
+/__pycache__/
+.vscode/
+.git/
+.gitignore
+.venv/
