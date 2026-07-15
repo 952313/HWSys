@@ -11,7 +11,7 @@ import os
 # 1. Flask 基础配置
 # ==========================================
 SECRET_KEY = 'your-secret-key-here'
-DEBUG = True
+DEBUG = False
 HOST = '0.0.0.0'
 PORT = 5000
 
