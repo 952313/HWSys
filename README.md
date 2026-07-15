@@ -24,3 +24,10 @@ python main.py
 
 # 4. 访问
 # 浏览器打开 http://localhost:5000
+```
+
+---
+
+## 📄 了解更多
+
+其他信息（版权声明、开源协议、致谢名单等）请参阅：[about.md](./about.md)

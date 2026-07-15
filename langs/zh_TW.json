@@ -215,5 +215,6 @@
     "back_to_home": "返回首頁",
     "back_to_login": "返回登入頁面",
     "retry_refresh": "刷新重試",
-    "home_label": "首頁"
+    "home_label": "首頁",
+    "about_link": "📄 關於"
 }

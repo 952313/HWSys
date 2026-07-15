@@ -213,5 +213,6 @@
     "back_to_home": "返回首页",
     "back_to_login": "返回登录页面",
     "retry_refresh": "刷新重试",
-    "home_label": "首页"
+    "home_label": "首页",
+    "about_link": "📄 关于"
 }

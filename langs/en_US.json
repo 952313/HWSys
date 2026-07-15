@@ -213,5 +213,6 @@
     "back_to_home": "Back to home",
     "back_to_login": "Back to login",
     "retry_refresh": "Refresh and retry",
-    "home_label": "Home"
+    "home_label": "Home",
+    "about_link": "📄 About"
 }
