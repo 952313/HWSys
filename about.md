@@ -3,7 +3,7 @@
 ---
 
 **項目名稱 / Project Name**：作業管理平台 / Homework Management Platform  
-**版本 / Version**：v1.1.0  
+**版本 / Version**：v1.1.1  
 **作者 / Author**：楊錦程 (Jason Yang Jincheng)  
 **年份 / Year**：2026
 
