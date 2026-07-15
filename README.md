@@ -7,8 +7,7 @@
 ## 🚀 快速开始
 
 ### 环境要求
-- Python 3.8+
-- pip
+- 见requirements.txt
 
 ### 安装运行
 
