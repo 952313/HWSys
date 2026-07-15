@@ -1,0 +1,158 @@
+<!DOCTYPE html>
+<html lang="{{ current_lang }}">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{{ t('settings_title', '⚙️ 设置中心') }} - {{ t('app_name', '作业管理平台') }}</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Arial, sans-serif;
+            min-height: 100vh;
+            background:
+                radial-gradient(circle at top left, rgba(102,126,234,0.24), transparent 35%),
+                radial-gradient(circle at bottom right, rgba(118,75,162,0.18), transparent 30%),
+                linear-gradient(135deg, #f7f8fc 0%, #eef2ff 100%);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+        }
+        .panel {
+            width: 100%;
+            max-width: 760px;
+            background: rgba(255,255,255,0.92);
+            backdrop-filter: blur(14px);
+            border: 1px solid rgba(255,255,255,0.65);
+            border-radius: 24px;
+            box-shadow: 0 24px 60px rgba(76, 86, 106, 0.18);
+            padding: 32px;
+        }
+        .hero {
+            display: flex;
+            align-items: flex-start;
+            justify-content: space-between;
+            gap: 20px;
+            flex-wrap: wrap;
+            margin-bottom: 24px;
+        }
+        .hero h1 {
+            font-size: 30px;
+            color: #1f2937;
+            margin-bottom: 8px;
+        }
+        .subtitle {
+            font-size: 14px;
+            color: #6b7280;
+            max-width: 460px;
+        }
+        .current {
+            padding: 12px 16px;
+            border-radius: 16px;
+            background: #f8fafc;
+            border: 1px solid #e5e7eb;
+            color: #374151;
+            min-width: 190px;
+        }
+        .current .label {
+            font-size: 12px;
+            color: #6b7280;
+            margin-bottom: 4px;
+        }
+        .current .value {
+            font-size: 18px;
+            font-weight: 700;
+            color: #111827;
+        }
+        .grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+            gap: 12px;
+            margin-bottom: 24px;
+        }
+        .lang-card {
+            display: block;
+            text-decoration: none;
+            padding: 18px;
+            border-radius: 18px;
+            border: 2px solid #e5e7eb;
+            background: #fff;
+            color: #1f2937;
+            transition: all 0.25s ease;
+        }
+        .lang-card:hover {
+            transform: translateY(-2px);
+            border-color: #667eea;
+            box-shadow: 0 16px 30px rgba(102,126,234,0.12);
+        }
+        .lang-card.active {
+            border-color: #667eea;
+            background: linear-gradient(135deg, rgba(102,126,234,0.08), rgba(118,75,162,0.08));
+        }
+        .lang-card .name {
+            font-size: 16px;
+            font-weight: 700;
+            margin-bottom: 6px;
+        }
+        .lang-card .desc {
+            font-size: 13px;
+            color: #6b7280;
+        }
+        .footer {
+            display: flex;
+            gap: 12px;
+            flex-wrap: wrap;
+            justify-content: flex-end;
+        }
+        .btn {
+            padding: 10px 16px;
+            border-radius: 10px;
+            text-decoration: none;
+            font-weight: 600;
+            font-size: 14px;
+            transition: all 0.25s ease;
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+        }
+        .btn:hover { transform: translateY(-1px); }
+        .btn-primary { background: #667eea; color: white; }
+        .btn-ghost { background: #edf2f7; color: #374151; }
+        @media (max-width: 640px) {
+            .panel { padding: 22px; }
+            .hero h1 { font-size: 24px; }
+            .footer { justify-content: stretch; }
+            .btn { justify-content: center; width: 100%; }
+        }
+    </style>
+</head>
+<body>
+    <div class="panel">
+        <div class="hero">
+            <div>
+                <h1>{{ t('settings_title', '⚙️ 设置中心') }}</h1>
+                <div class="subtitle">{{ t('settings_subtitle', '切换语言与显示偏好') }}</div>
+            </div>
+            <div class="current">
+                <div class="label">{{ t('current_language', '当前语言') }}</div>
+                <div class="value">{{ language_label(current_lang) }}</div>
+            </div>
+        </div>
+
+        <div style="font-size:13px; color:#6b7280; margin-bottom:10px;">{{ t('language_settings', '语言设置') }}</div>
+        <div class="grid">
+            {% for lang_code in supported_langs %}
+                <a class="lang-card {% if current_lang == lang_code %}active{% endif %}" href="/language/{{ lang_code }}?next={{ next_url | urlencode }}">
+                    <div class="name">{{ language_label(lang_code) }}</div>
+                    <div class="desc">{{ lang_code }}</div>
+                </a>
+            {% endfor %}
+        </div>
+
+        <div class="footer">
+            <a class="btn btn-ghost" href="{{ next_url }}">↩ {{ t('back_to_page', '返回上一页') }}</a>
+            <a class="btn btn-primary" href="{{ home_url }}">🏠 {{ t('home_label', '首页') }}</a>
+        </div>
+    </div>
+</body>
+</html>

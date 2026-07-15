@@ -4,10 +4,11 @@
 作业管理平台 - 主应用
 """
 
-from flask import Flask, render_template, request, redirect, session, flash, jsonify, send_file
+from flask import Flask, render_template, request, redirect, session, flash, jsonify, send_file, g, url_for
 from storage import Storage
 from subject_aliases import get_subject_info, search_subjects, get_all_subjects_for_dropdown
 from middleware import RequestLogger
+from i18n import load_translations, normalize_lang_code, resolve_lang, SUPPORTED_LANGS
 import bcrypt
 import time
 import json
@@ -24,6 +25,75 @@ import config
 app = Flask(__name__)
 app.secret_key = config.SECRET_KEY
 app.debug = config.DEBUG
+
+
+@app.before_request
+def set_request_language():
+    logged_in = 'user_id' in session
+    accept_language = request.headers.get('Accept-Language', '')
+    current_lang = resolve_lang(
+        user_lang=session.get('lang_code'),
+        session_lang=session.get('lang_code'),
+        accept_language=accept_language,
+        logged_in=logged_in
+    )
+    if not logged_in and 'lang_code' not in session:
+        session['lang_code'] = current_lang
+    g.current_lang = current_lang
+    g.translations = load_translations(current_lang)
+
+
+@app.context_processor
+def inject_i18n_context():
+    current_lang = getattr(g, 'current_lang', session.get('lang_code', config.DEFAULT_LANG_CODE))
+
+    def translate(key, default=''):
+        return g.translations.get(key, '')
+
+    def language_label(lang_code):
+        labels = {
+            'zh-CN': '简体中文',
+            'zh-TW': '繁體中文',
+            'en-US': 'English'
+        }
+        return labels.get(normalize_lang_code(lang_code), '繁體中文')
+
+    return {
+        'current_lang': current_lang,
+        'supported_langs': SUPPORTED_LANGS,
+        't': translate,
+        'translate': translate,
+        'language_label': language_label,
+    }
+
+
+@app.route('/language/<lang_code>')
+def set_language(lang_code):
+    normalized = normalize_lang_code(lang_code)
+    session['lang_code'] = normalized
+    if 'user_id' in session:
+        username = session.get('username', '')
+        student_id = session.get('student_id', '')
+        storage._enqueue_write(
+            "UPDATE users SET lang_code = ? WHERE id = ?",
+            (normalized, session['user_id']),
+            cache_keys=[f'user:username:{username}', f'user:student_id:{student_id}', 'users:all'],
+            db='user'
+        )
+
+    next_url = request.args.get('next') or request.referrer or '/'
+    if not next_url.startswith('/'):
+        next_url = '/'
+    return redirect(next_url)
+
+
+@app.route('/settings')
+def settings():
+    next_url = request.args.get('next') or request.referrer or ('/page' if 'user_id' in session else '/')
+    if not next_url.startswith('/'):
+        next_url = '/'
+    home_url = '/page' if 'user_id' in session else '/'
+    return render_template('settings.html', next_url=next_url, home_url=home_url)
 
 # ==========================================
 # 初始化存储层
@@ -296,6 +366,7 @@ def login():
     session['student_id'] = user_data.get('student_id', '')
     session['role'] = user_data['role']
     session['name'] = user_data['name']
+    session['lang_code'] = resolve_lang(user_lang=user_data.get('lang_code'), logged_in=True)
 
     if remember_me:
         session.permanent = True
@@ -1278,9 +1349,9 @@ def admin_import_users():
                     create_password = password if password else default_password
                     password_hash = bcrypt.hashpw(create_password.encode('utf-8'), bcrypt.gensalt())
                     storage._execute('''
-                        INSERT INTO users (username, student_id, password_hash, role, name, first_login, created_at)
-                        VALUES (?, ?, ?, ?, ?, ?, ?)
-                    ''', (student_id, student_id, password_hash, default_role, name, 1, int(time.time())),
+                        INSERT INTO users (username, student_id, password_hash, role, name, lang_code, first_login, created_at)
+                        VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+                    ''', (student_id, student_id, password_hash, default_role, name, config.DEFAULT_LANG_CODE, 1, int(time.time())),
                         db='user'
                     )
                     print(f"   ✅ 已创建用户: {student_id}")
@@ -1386,9 +1457,9 @@ def admin_create_user():
 
     password_hash = bcrypt.hashpw(password.encode('utf-8'), bcrypt.gensalt())
     storage._enqueue_write('''
-        INSERT INTO users (username, student_id, password_hash, role, name, first_login, created_at)
-        VALUES (?, ?, ?, ?, ?, ?, ?)
-    ''', (username, username, password_hash, role, name, 1, int(time.time())),
+        INSERT INTO users (username, student_id, password_hash, role, name, lang_code, first_login, created_at)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+    ''', (username, username, password_hash, role, name, config.DEFAULT_LANG_CODE, 1, int(time.time())),
         cache_keys=['users:all'],
         db='user'
     )
@@ -2066,11 +2137,26 @@ def format_date_filter(ts):
 # ==========================================
 
 if __name__ == '__main__':
+    if getattr(config, 'DEBUG_RAISE', False):
+        try:
+            raise RuntimeError('DebugRaise')
+        except Exception as e:
+            import traceback
+
+            storage.log_error(
+                error_type=type(e).__name__,
+                error_message=str(e),
+                stack_trace=traceback.format_exc(),
+                path='__startup__',
+                user_id=None,
+                ip='127.0.0.1'
+            )
+            print('⚠️ DebugRaise 已记录到日志数据库')
+
     print("=" * 60)
     print("📚 作业管理平台")
     print("=" * 60)
     print("🌐 访问: http://localhost:5000")
-    print("👤 默认管理员: admin / admin123")
     print("=" * 60)
     print("📖 角色权限:")
     print("   admin      - 管理员（全部权限）")

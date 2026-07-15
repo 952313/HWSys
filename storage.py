@@ -112,6 +112,7 @@ class Storage:
                 password_hash TEXT NOT NULL,
                 role TEXT NOT NULL DEFAULT 'student',
                 name TEXT NOT NULL,
+                lang_code TEXT,
                 first_login INTEGER DEFAULT 1,
                 created_at INTEGER NOT NULL
             )
@@ -174,8 +175,18 @@ class Storage:
         conn.commit()
 
         # 初始化默认数据
+        self._ensure_user_lang_column()
         self._init_default_subjects()
         self._ensure_default_admin()
+
+    def _ensure_user_lang_column(self):
+        conn = self._get_user_conn()
+        cursor = conn.cursor()
+        columns = cursor.execute("PRAGMA table_info(users)").fetchall()
+        column_names = {column['name'] for column in columns}
+        if 'lang_code' not in column_names:
+            cursor.execute("ALTER TABLE users ADD COLUMN lang_code TEXT")
+            conn.commit()
 
     def _init_work_db(self):
         """初始化作业数据库"""
@@ -341,11 +352,29 @@ class Storage:
         conn = self._get_user_conn()
         cursor = conn.cursor()
 
-        for (standard, display), aliases in config.PRESET_SUBJECTS.items():
+        preset_items = list(config.PRESET_SUBJECTS.keys())
+        preset_standard_names = [standard for standard, _ in preset_items]
+
+        if preset_standard_names:
+            placeholders = ','.join('?' for _ in preset_standard_names)
             cursor.execute(
-                "SELECT id FROM subjects WHERE standard_name = ?", (standard,)
+                f"DELETE FROM subjects WHERE standard_name NOT IN ({placeholders})",
+                tuple(preset_standard_names)
             )
-            if not cursor.fetchone():
+        else:
+            cursor.execute("DELETE FROM subjects")
+
+        for standard, display in preset_items:
+            cursor.execute(
+                "SELECT id FROM subjects WHERE standard_name = ?",
+                (standard,)
+            )
+            if cursor.fetchone():
+                cursor.execute(
+                    "UPDATE subjects SET display_name = ?, is_custom = 0 WHERE standard_name = ?",
+                    (display, standard)
+                )
+            else:
                 cursor.execute('''
                     INSERT INTO subjects (standard_name, display_name, is_custom, created_at)
                     VALUES (?, ?, ?, ?)
@@ -366,19 +395,18 @@ class Storage:
                 bcrypt.gensalt()
             )
             cursor.execute('''
-                INSERT INTO users (username, student_id, password_hash, role, name, first_login, created_at)
-                VALUES (?, ?, ?, ?, ?, ?, ?)
+                INSERT INTO users (username, student_id, password_hash, role, name, lang_code, first_login, created_at)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?)
             ''', (
                 config.DEFAULT_ADMIN_USERNAME,
                 'admin001',
                 password_hash,
                 'admin',
                 config.DEFAULT_ADMIN_NAME,
+                getattr(config, 'DEFAULT_LANG_CODE', 'zh-TW'),
                 0,
                 int(time.time())
             ))
-            print(f"✅ 默认管理员账号: {config.DEFAULT_ADMIN_USERNAME} / {config.DEFAULT_ADMIN_PASSWORD}")
-
         conn.commit()
 
     # ==========================================

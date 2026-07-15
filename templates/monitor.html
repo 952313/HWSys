@@ -1,9 +1,9 @@
 <!DOCTYPE html>
-<html lang="zh-CN">
+<html lang="{{ current_lang }}">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>🔧 系统监控 - 作业管理平台</title>
+    <title>{{ t('monitor_title') }} - {{ t('app_name') }}</title>
     <style>
         * { margin: 0; padding: 0; box-sizing: border-box; }
         body {
@@ -162,21 +162,22 @@
     <div class="container">
         <div class="header">
             <div>
-                <h1>🔧 系统监控</h1>
-                <span style="font-size:13px; opacity:0.8;">技术员面板</span>
+                <h1>{{ t('monitor_title') }}</h1>
+                <span style="font-size:13px; opacity:0.8;">{{ t('monitor_subtitle') }}</span>
             </div>
             <div class="time">
                 🕐 {{ now }}
+                <a href="/settings?next=/monitor">⚙️ {{ t('settings') }}</a>
                 {% if session.role == 'admin' %}
-                <a href="/admin">🏠 首页</a>
+                <a href="/admin">🏠 {{ t('admin_home') }}</a>
                 {% else %}
                     {% if session.role == 'admin' %}
-                    <a href="/admin">⚙️ 管理后台</a>
+                    <a href="/admin">⚙️ {{ t('admin_title') }}</a>
                     {% endif %}
                     <!-- 技术员不显示首页按钮，因为已经在监控面板 -->
                 {% endif %}
-                <a href="/change_password">🔑 修改密码</a>
-                <a href="/logout">退出</a>
+                <a href="/change_password">🔑 {{ t('change_password') }}</a>
+                <a href="/logout">{{ t('logout') }}</a>
             </div>
         </div>
 
@@ -194,38 +195,38 @@
         <div class="stats-grid">
             <div class="stat-card">
                 <div class="number blue">{{ stats.total_visits or 0 }}</div>
-                <div class="label">📊 今日访问</div>
-                <div class="sub">较昨日 {{ stats.visits_change or 0 }}%</div>
+                <div class="label">📊 {{ t('today_visits') }}</div>
+                <div class="sub">{{ t('yesterday_compare') }} {{ stats.visits_change or 0 }}%</div>
             </div>
             <div class="stat-card">
                 <div class="number green">{{ stats.total_operations or 0 }}</div>
-                <div class="label">⚡ 今日操作</div>
-                <div class="sub">创建/完成/删除等</div>
+                <div class="label">⚡ {{ t('today_operations') }}</div>
+                <div class="sub">{{ t('ops_summary') }}</div>
             </div>
             <div class="stat-card">
                 <div class="number red">{{ stats.total_errors or 0 }}</div>
-                <div class="label">❌ 今日异常</div>
-                <div class="sub">需要关注</div>
+                <div class="label">❌ {{ t('today_errors') }}</div>
+                <div class="sub">{{ t('need_attention') }}</div>
             </div>
             <div class="stat-card">
                 <div class="number orange">{{ stats.avg_response_ms or 0 }}ms</div>
-                <div class="label">⏱️ 平均响应</div>
-                <div class="sub">良好 &lt; 200ms</div>
+                <div class="label">⏱️ {{ t('avg_response') }}</div>
+                <div class="sub">{{ t('response_hint') }}</div>
             </div>
         </div>
 
         <div class="action-bar">
-            <button class="refresh-btn" onclick="location.reload()">🔄 刷新</button>
-            <a href="/monitor/errors" class="btn btn-blue" style="padding:6px 16px; font-size:13px;">📂 查看全部异常</a>
-            <a href="/admin" class="btn btn-gray" style="padding:6px 16px; font-size:13px;">⚙️ 管理后台</a>
+            <button class="refresh-btn" onclick="location.reload()">🔄 {{ t('refresh') }}</button>
+            <a href="/monitor/errors" class="btn btn-blue" style="padding:6px 16px; font-size:13px;">📂 {{ t('view_all_errors') }}</a>
+            <a href="/admin" class="btn btn-gray" style="padding:6px 16px; font-size:13px;">⚙️ {{ t('admin_title') }}</a>
         </div>
 
         <!-- 两栏 -->
         <div class="two-col">
             <div class="card">
                 <div class="card-header">
-                    📋 操作类型统计
-                    <span class="badge badge-blue">今日</span>
+                    {{ t('operation_stats_title') }}
+                    <span class="badge badge-blue">{{ t('today') }}</span>
                 </div>
                 <div class="card-body">
                     {% if op_stats %}
@@ -246,14 +247,14 @@
                             </div>
                         {% endfor %}
                     {% else %}
-                        <div class="empty-state">暂无操作记录</div>
+                        <div class="empty-state">{{ t('no_operations') }}</div>
                     {% endif %}
                 </div>
             </div>
 
             <div class="card">
                 <div class="card-header">
-                    🔥 最近异常
+                    {{ t('recent_errors_title') }}
                     <span class="badge badge-red">{{ unresolved_errors|length }}</span>
                 </div>
                 <div class="card-body">
@@ -264,10 +265,10 @@
                                     <input type="checkbox" id="selectAll" onchange="toggleAll(this)"> 全选
                                 </label>
                                 <button type="button" class="btn btn-gray" onclick="invertSelection()" style="font-size:11px;">反选</button>
-                                <button type="button" class="btn btn-gray" onclick="clearSelection()" style="font-size:11px;">清空</button>
-                                <button type="submit" name="action" value="resolve" class="btn btn-green" style="font-size:11px;">批量标记已解决</button>
-                                <button type="submit" name="action" value="delete" class="btn btn-red" style="font-size:11px;">批量删除</button>
-                                <span id="selectedCount" style="color:#666; font-size:12px; margin-left:8px;">已选 0 项</span>
+                                <button type="button" class="btn btn-gray" onclick="clearSelection()" style="font-size:11px;">{{ t('clear_selection') }}</button>
+                                <button type="submit" name="action" value="resolve" class="btn btn-green" style="font-size:11px;">{{ t('batch_mark_resolved') }}</button>
+                                <button type="submit" name="action" value="delete" class="btn btn-red" style="font-size:11px;">{{ t('batch_delete') }}</button>
+                                <span id="selectedCount" style="color:#666; font-size:12px; margin-left:8px;">{{ t('selected_count_prefix') }} 0 {{ t('selected_count_suffix') }}</span>
                             </div>
                             {% for err in unresolved_errors %}
                                 <div class="log-item">
@@ -280,15 +281,15 @@
                                     <div style="text-align:right; flex-shrink:0; display:flex; flex-direction:column; align-items:flex-end; gap:6px;">
                                         <div style="font-size:10px; color:#888;">{{ err.created_at|format_timestamp }}</div>
                                         <div style="display:flex; gap:6px;">
-                                            <button type="button" class="btn btn-gray" onclick="showDetail({{ err.id }})" style="font-size:10px;">详情</button>
-                                            <a href="/resolve_error/{{ err.id }}" class="btn btn-green" style="font-size:10px;">已解决</a>
+                                            <button type="button" class="btn btn-gray" onclick="showDetail({{ err.id }})" style="font-size:10px;">{{ t('detail_btn') }}</button>
+                                            <a href="/resolve_error/{{ err.id }}" class="btn btn-green" style="font-size:10px;">{{ t('resolved_btn') }}</a>
                                         </div>
                                     </div>
                                 </div>
                             {% endfor %}
                         </form>
                     {% else %}
-                        <div class="empty-state">🎉 暂无未解决异常</div>
+                        <div class="empty-state">🎉 {{ t('no_unresolved_errors') }}</div>
                     {% endif %}
                 </div>
             </div>
@@ -297,8 +298,8 @@
         <!-- 最近操作 -->
         <div class="card">
             <div class="card-header">
-                📜 最近操作日志
-                <span style="font-size:12px; color:#888;">最新 50 条</span>
+                {{ t('recent_operations_title') }}
+                <span style="font-size:12px; color:#888;">{{ t('latest_count') }} 50 {{ t('items') }}</span>
             </div>
             <div class="card-body" style="max-height: 350px;">
                 {% if operations %}
@@ -321,7 +322,7 @@
                         </div>
                     {% endfor %}
                 {% else %}
-                    <div class="empty-state">暂无操作记录</div>
+                    <div class="empty-state">{{ t('no_operations') }}</div>
                 {% endif %}
             </div>
         </div>

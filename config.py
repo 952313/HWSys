@@ -22,6 +22,9 @@ USER_DB_PATH = 'user.db'
 WORK_DB_PATH = 'hw.db'
 LOG_DB_PATH = 'log.db'
 WRITE_QUEUE_MAX = 1000  # ✅ 写入队列最大容量
+ENABLE_DEFAULT_SUBJECTS = False
+DEBUG_RAISE = True
+DEFAULT_LANG_CODE = 'zh-TW'
 
 # ==========================================
 # 3. 分页配置
@@ -64,7 +67,7 @@ PRESET_SUBJECTS = {
     ('english', 'English'): ['英文', '英语', '外语'],
     ('history', 'History'): ['西方历史', '历史学', '历史', '西史'],
     ('geography', 'Geography'): ['地理', '地理学'],
-    ('ces', 'CES'): ['Citizenship,economics and Society', '公民、经济与社会', '公经社'],
+    ('ces', 'CES'): ['Citizenship,Economics and Society', '公民、经济与社会', '公经社'],
     ('art', 'VA'): ['Visual Art', '艺术', '绘画', '美术'],
     ('music', 'Music'): ['音乐', '声乐'],
     ('pe', 'P.E.'): ['PE', '体育', 'Physical Education', '运动'],

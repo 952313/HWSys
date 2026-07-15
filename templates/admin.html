@@ -1,9 +1,9 @@
 <!DOCTYPE html>
-<html lang="zh-CN">
+<html lang="{{ current_lang }}">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>⚙️ 管理后台 - 作业管理平台</title>
+    <title>{{ t('admin_title', '⚙️ 管理后台') }} - {{ t('app_name', '作业管理平台') }}</title>
     <style>
         * { margin: 0; padding: 0; box-sizing: border-box; }
         body {
@@ -126,14 +126,14 @@
     <div class="container">
         <div class="header">
             <div>
-                <h1>⚙️ 管理后台</h1>
-                <span style="font-size:14px; color:#888;">👤 {{ session.name }} (管理员)</span>
+                <h1>{{ t('admin_title', '⚙️ 管理后台') }}</h1>
+                <span style="font-size:14px; color:#888;">👤 {{ session.name }} ({{ t('admin_subtitle', '管理员面板') }})</span>
             </div>
             <div class="actions">
-                <!-- 首页按钮已移除，管理后台就是首页 -->
-                <a href="/monitor" class="btn btn-purple">📊 监控</a>
-                <a href="/change_password" class="btn btn-gray">🔑 修改密码</a>
-                <a href="/logout" class="btn btn-gray">🚪 退出</a>
+                <a href="/settings?next=/admin" class="btn btn-gray">⚙️ {{ t('settings') }}</a>
+                <a href="/monitor" class="btn btn-purple">📊 {{ t('monitor_short') }}</a>
+                <a href="/change_password" class="btn btn-gray">{{ t('change_password', '🔑 修改密码') }}</a>
+                <a href="/logout" class="btn btn-gray">{{ t('logout', '🚪 退出') }}</a>
             </div>
         </div>
 
@@ -149,26 +149,26 @@
 
         <!-- ====== 用户导入 ====== -->
         <div class="card">
-            <h3>📥 批量导入用户</h3>
-            <p style="font-size:13px; color:#888; margin-bottom:10px;">CSV格式：总学号,姓名,密码,班级列表（多个用&分隔）,主班级学号</p>
+            <h3>{{ t('import_users', '📥 批量导入用户') }}</h3>
+            <p style="font-size:13px; color:#888; margin-bottom:10px;">{{ t('import_hint', 'CSV格式：总学号,姓名,密码,班级列表（多个用&分隔）,主班级学号') }}</p>
             <div class="import-area">
                 <form method="POST" action="/admin/import" enctype="multipart/form-data" id="importForm">
                     <input type="file" name="csv_file" accept=".csv,.xlsx" required>
                     <div style="margin-top:10px; display:flex; gap:10px; justify-content:center; flex-wrap:wrap;">
                         <div class="form-group" style="flex-direction:row; align-items:center; gap:8px;">
-                            <label>默认角色</label>
+                            <label>{{ t('default_role', '默认角色') }}</label>
                             <select name="default_role">
-                                <option value="student">同学</option>
-                                <option value="rep">课代表</option>
-                                <option value="teacher">老师</option>
+                                <option value="student">{{ t('student_role', '同学') }}</option>
+                                <option value="rep">{{ t('rep_role', '课代表') }}</option>
+                                <option value="teacher">{{ t('teacher_role', '老师') }}</option>
                             </select>
                         </div>
                         <div class="form-group" style="flex-direction:row; align-items:center; gap:8px;">
-                            <label>默认密码</label>
+                            <label>{{ t('default_password', '默认密码') }}</label>
                             <input type="text" name="default_password" value="123456" style="width:120px;">
                         </div>
-                        <button type="submit" class="btn btn-green" id="importBtn">📤 导入</button>
-                        <a href="/admin/import/template" class="btn btn-blue">📄 下载模板</a>
+                        <button type="submit" class="btn btn-green" id="importBtn">📤 {{ t('login_btn', '导入') }}</button>
+                        <a href="/admin/import/template" class="btn btn-blue">{{ t('download_template', '📄 下载模板') }}</a>
                     </div>
                 </form>
             </div>
@@ -189,42 +189,42 @@
 
         <!-- ====== 创建用户 ====== -->
         <div class="card">
-            <h3>➕ 创建单个用户</h3>
+            <h3>{{ t('create_user', '➕ 创建单个用户') }}</h3>
             <form method="POST" action="/admin/user/create">
                 <div class="form-row">
                     <div class="form-group">
-                        <label>学号 *</label>
+                        <label>{{ t('username_label', '学号 / 工号') }} *</label>
                         <input type="text" name="username" placeholder="s25001" required>
                     </div>
                     <div class="form-group">
-                        <label>密码 *</label>
+                        <label>{{ t('password_label', '密码') }} *</label>
                         <input type="text" name="password" placeholder="默认密码" required>
                     </div>
                     <div class="form-group">
-                        <label>姓名 *</label>
+                        <label>{{ t('name_label', '姓名') }} *</label>
                         <input type="text" name="name" placeholder="张三" required>
                     </div>
                     <div class="form-group">
-                        <label>角色</label>
+                        <label>{{ t('default_role', '角色') }}</label>
                         <select name="role">
-                            <option value="student">同学</option>
-                            <option value="rep">课代表</option>
-                            <option value="teacher">老师</option>
-                            <option value="technician">技术员</option>
-                            <option value="admin">管理员</option>
+                            <option value="student">{{ t('student_role', '同学') }}</option>
+                            <option value="rep">{{ t('rep_role', '课代表') }}</option>
+                            <option value="teacher">{{ t('teacher_role', '老师') }}</option>
+                            <option value="technician">{{ t('technician_role', '技术员') }}</option>
+                            <option value="admin">{{ t('admin_role', '管理员') }}</option>
                         </select>
                     </div>
                     <div class="form-group">
-                        <label>班级</label>
+                        <label>{{ t('class_label', '班级') }}</label>
                         <select name="class_id">
-                            <option value="">未分配</option>
+                            <option value="">{{ t('unassigned', '未分配') }}</option>
                             {% for c in classes %}
                                 <option value="{{ c.id }}">{{ c.name }}</option>
                             {% endfor %}
                         </select>
                     </div>
                     <div class="form-group">
-                        <button type="submit" class="btn btn-green">创建用户</button>
+                        <button type="submit" class="btn btn-green">{{ t('create_user', '创建用户') }}</button>
                     </div>
                 </div>
             </form>
@@ -232,20 +232,20 @@
 
         <!-- ====== 班级管理 ====== -->
         <div class="card">
-            <h3>🏫 班级管理</h3>
+            <h3>{{ t('create_class', '🏫 班级管理') }}</h3>
             <form method="POST" action="/admin/class/create" style="display:flex; gap:12px; align-items:end; flex-wrap:wrap;">
                 <div class="form-group" style="flex:1; min-width:200px;">
-                    <label>班级名称</label>
+                    <label>{{ t('class_name_label', '班级名称') }}</label>
                     <input type="text" name="name" placeholder="1A" required>
                 </div>
-                <button type="submit" class="btn btn-blue">创建班级</button>
+                <button type="submit" class="btn btn-blue">{{ t('create_class', '创建班级') }}</button>
             </form>
             {% if classes %}
                 <div style="margin-top:12px; display:flex; flex-wrap:wrap; gap:8px;">
                     {% for c in classes %}
                         <span style="background:#f7fafc; padding:4px 14px; border-radius:12px; font-size:13px; display:flex; align-items:center; gap:8px;">
                             {{ c.name }}
-                            <a href="/admin/class/{{ c.id }}/assignments" class="btn btn-sm btn-blue" style="margin-left:8px;">管理作业</a>
+                            <a href="/admin/class/{{ c.id }}/assignments" class="btn btn-sm btn-blue" style="margin-left:8px;">{{ t('manage_assignments', '管理作业') }}</a>
                             <a href="/admin/class/delete/{{ c.id }}" onclick="return confirm('确定删除？')" style="color:#fc8181; text-decoration:none;">×</a>
                         </span>
                     {% endfor %}
@@ -255,22 +255,22 @@
 
         <!-- ====== 导出作业 ====== -->
         <div class="card">
-            <h3>📤 导出作业</h3>
-            <p class="sub">导出早于指定天数的作业。支持 CSV/JSON，并可选择压缩为 .zip 或 .tar.gz。</p>
+            <h3>📤 {{ t('export_assignments', '导出作业') }}</h3>
+            <p class="sub">{{ t('export_assignments_hint', '导出早于指定天数的作业。支持 CSV/JSON，并可选择压缩为 .zip 或 .tar.gz。') }}</p>
             <form method="GET" action="/admin/assignments/export" style="display:flex; gap:12px; align-items:center; flex-wrap:wrap;">
                 <div class="form-group">
-                    <label>天数（早于 N 天）</label>
+                    <label>{{ t('days_label', '天数（早于 N 天）') }}</label>
                     <input type="number" name="days" value="30" style="width:120px;">
                 </div>
                 <div class="form-group">
-                    <label>格式</label>
+                    <label>{{ t('format_label', '格式') }}</label>
                     <select name="format">
                         <option value="csv">CSV</option>
                         <option value="json">JSON（数组）</option>
                     </select>
                 </div>
                 <div class="form-group">
-                    <label>压缩</label>
+                    <label>{{ t('compress_label', '压缩') }}</label>
                     <select name="compress">
                         <option value="">无</option>
                         <option value="zip">ZIP (.zip)</option>
@@ -278,20 +278,20 @@
                     </select>
                 </div>
                 <div class="form-group">
-                    <button type="submit" class="btn btn-blue">导出</button>
+                    <button type="submit" class="btn btn-blue">{{ t('export_btn', '导出') }}</button>
                 </div>
             </form>
         </div>
 
         <!-- ====== 科目管理 ====== -->
         <div class="card">
-            <h3>📚 科目管理</h3>
+            <h3>{{ t('create_subject', '📚 科目管理') }}</h3>
             <form method="POST" action="/admin/subject/create" style="display:flex; gap:12px; align-items:end; flex-wrap:wrap;">
                 <div class="form-group" style="flex:1; min-width:150px;">
-                    <label>科目名称</label>
+                    <label>{{ t('subject_name_label', '科目名称') }}</label>
                     <input type="text" name="name" placeholder="Math" required>
                 </div>
-                <button type="submit" class="btn btn-blue">添加科目</button>
+                <button type="submit" class="btn btn-blue">{{ t('add_subject_btn', '添加科目') }}</button>
             </form>
             {% if subjects %}
                 <div style="margin-top:12px; display:flex; flex-wrap:wrap; gap:8px;">
@@ -304,38 +304,38 @@
 
         <!-- ====== 老师指派 ====== -->
         <div class="card">
-            <h3>👨‍🏫 老师指派</h3>
+            <h3>{{ t('teacher_assign_title', '👨‍🏫 老师指派') }}</h3>
             <form method="POST" action="/admin/teacher/assign">
                 <div class="form-row">
                     <div class="form-group">
-                        <label>老师</label>
+                        <label>{{ t('teacher_label', '老师') }}</label>
                         <select name="teacher_id" required>
-                            <option value="">选择...</option>
+                            <option value="">{{ t('select_placeholder', '选择...') }}</option>
                             {% for u in users if u.role == 'teacher' or u.role == 'admin' %}
                                 <option value="{{ u.id }}">{{ u.name }} ({{ u.username }})</option>
                             {% endfor %}
                         </select>
                     </div>
                     <div class="form-group">
-                        <label>班级</label>
+                        <label>{{ t('class_label', '班级') }}</label>
                         <select name="class_id" required>
-                            <option value="">选择...</option>
+                            <option value="">{{ t('select_placeholder', '选择...') }}</option>
                             {% for c in classes %}
                                 <option value="{{ c.id }}">{{ c.name }}</option>
                             {% endfor %}
                         </select>
                     </div>
                     <div class="form-group">
-                        <label>科目</label>
+                        <label>{{ t('subject_label', '科目') }}</label>
                         <select name="subject_id" required>
-                            <option value="">选择...</option>
+                            <option value="">{{ t('select_placeholder', '选择...') }}</option>
                             {% for s in subjects %}
                                 <option value="{{ s.id }}">{{ s.display_name }}</option>
                             {% endfor %}
                         </select>
                     </div>
                     <div class="form-group">
-                        <button type="submit" class="btn btn-purple">指派</button>
+                        <button type="submit" class="btn btn-purple">{{ t('assign_btn', '指派') }}</button>
                     </div>
                 </div>
             </form>
@@ -353,38 +353,38 @@
 
         <!-- ====== 课代表指派 ====== -->
         <div class="card">
-            <h3>👨‍🎓 课代表指派</h3>
+            <h3>{{ t('rep_assign_title', '👨‍🎓 课代表指派') }}</h3>
             <form method="POST" action="/admin/rep/assign">
                 <div class="form-row">
                     <div class="form-group">
-                        <label>课代表</label>
+                        <label>{{ t('rep_label', '课代表') }}</label>
                         <select name="rep_id" required>
-                            <option value="">选择...</option>
+                            <option value="">{{ t('select_placeholder', '选择...') }}</option>
                             {% for u in users if u.role == 'rep' or u.role == 'student' %}
                                 <option value="{{ u.id }}">{{ u.name }} ({{ u.username }})</option>
                             {% endfor %}
                         </select>
                     </div>
                     <div class="form-group">
-                        <label>班级</label>
+                        <label>{{ t('class_label', '班级') }}</label>
                         <select name="class_id" required>
-                            <option value="">选择...</option>
+                            <option value="">{{ t('select_placeholder', '选择...') }}</option>
                             {% for c in classes %}
                                 <option value="{{ c.id }}">{{ c.name }}</option>
                             {% endfor %}
                         </select>
                     </div>
                     <div class="form-group">
-                        <label>科目</label>
+                        <label>{{ t('subject_label', '科目') }}</label>
                         <select name="subject_id" required>
-                            <option value="">选择...</option>
+                            <option value="">{{ t('select_placeholder', '选择...') }}</option>
                             {% for s in subjects %}
                                 <option value="{{ s.id }}">{{ s.display_name }}</option>
                             {% endfor %}
                         </select>
                     </div>
                     <div class="form-group">
-                        <button type="submit" class="btn btn-orange">指派</button>
+                        <button type="submit" class="btn btn-orange">{{ t('assign_btn', '指派') }}</button>
                     </div>
                 </div>
             </form>
@@ -404,10 +404,10 @@
         <div class="card">
             <div class="card-header" style="display:flex; justify-content:space-between; align-items:center; padding-bottom:12px; border-bottom:1px solid #e2e8f0;">
                 <div>
-                    <h3 style="font-size:16px; color:#2d3748; margin:0;">👥 用户列表</h3>
-                    <span class="sub" style="font-size:13px; color:#888; margin-top:4px; display:block;">共 {{ total_users }} 个用户</span>
+                    <h3 style="font-size:16px; color:#2d3748; margin:0;">{{ t('users_title', '👥 用户列表') }}</h3>
+                    <span class="sub" style="font-size:13px; color:#888; margin-top:4px; display:block;">{{ t('total_users_label', '共') }} {{ total_users }} {{ t('users_suffix', '个用户') }}</span>
                 </div>
-                <a href="/admin/users" class="btn btn-blue">📋 查看全部用户</a>
+                <a href="/admin/users" class="btn btn-blue">{{ t('view_all_users', '📋 查看全部用户') }}</a>
             </div>
             <div style="margin-top:12px; overflow-x:auto;">
                 <table>
@@ -428,9 +428,9 @@
                                 <td>{{ u.name }}</td>
                                 <td><span class="badge badge-{{ u.role }}">{{ u.role }}</span></td>
                                 <td>
-                                    <a href="/admin/user/reset_password/{{ u.id }}" class="btn btn-orange btn-sm">重置</a>
+                                    <a href="/admin/user/reset_password/{{ u.id }}" class="btn btn-orange btn-sm">{{ t('reset_btn', '重置') }}</a>
                                     {% if u.id != session.user_id %}
-                                        <a href="/admin/user/delete/{{ u.id }}" class="btn btn-red btn-sm" onclick="return confirm('确定删除？')">删除</a>
+                                        <a href="/admin/user/delete/{{ u.id }}" class="btn btn-red btn-sm" onclick="return confirm('{{ t('confirm_delete_short', '确定删除？') }}')">{{ t('delete', '删除') }}</a>
                                     {% else %}
                                         <span style="color:#888; font-size:12px;">（自己）</span>
                                     {% endif %}
@@ -441,7 +441,7 @@
                 </table>
                 {% if users|length > 10 %}
                     <div style="text-align:center; margin-top:12px; color:#888; font-size:13px;">
-                        ... 还有 {{ users|length - 10 }} 个用户，<a href="/admin/users">点击查看全部</a>
+                        ... 还有 {{ users|length - 10 }} 个用户，<a href="/admin/users">{{ t('view_all_users', '点击查看全部') }}</a>
                     </div>
                 {% endif %}
             </div>

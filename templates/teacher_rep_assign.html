@@ -1,9 +1,9 @@
 <!DOCTYPE html>
-<html lang="zh-CN">
+<html lang="{{ current_lang }}">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>👨‍🎓 指派课代表 - 作业管理平台</title>
+    <title>{{ t('rep_assign_title') }} - {{ t('app_name') }}</title>
     <style>
         * { margin: 0; padding: 0; box-sizing: border-box; }
         body {
@@ -107,13 +107,14 @@
     <div class="container">
         <div class="header">
             <div>
-                <h1>👨‍🎓 指派课代表</h1>
-                <span style="font-size:14px; color:#888;">选择班级和科目，指派学生为课代表</span>
+                <h1>{{ t('rep_assign_title') }}</h1>
+                <span style="font-size:14px; color:#888;">{{ t('rep_assign_subtitle') }}</span>
             </div>
             <div class="actions">
-                <a href="/page" class="btn btn-blue">🏠 首页</a>
-                <a href="/change_password" class="btn btn-gray">🔑 修改密码</a>
-                <a href="/logout" class="btn btn-gray">🚪 退出</a>
+                <a href="/settings?next=/teacher/rep/assign" class="btn btn-gray">⚙️ {{ t('settings') }}</a>
+                <a href="/page" class="btn btn-blue">🏠 {{ t('admin_home') }}</a>
+                <a href="/change_password" class="btn btn-gray">{{ t('change_password') }}</a>
+                <a href="/logout" class="btn btn-gray">{{ t('logout') }}</a>
             </div>
         </div>
 
@@ -128,29 +129,29 @@
         {% endwith %}
 
         <div class="card">
-            <h3>📋 指派课代表</h3>
+            <h3>{{ t('assign_rep_title') }}</h3>
             <form method="POST" action="/teacher/rep/assign">
                 <div class="form-row">
                     <div class="form-group">
-                        <label>班级 + 科目</label>
+                        <label>{{ t('class_subject_label') }}</label>
                         <select name="assignment_id" required>
-                            <option value="">选择...</option>
+                            <option value="">{{ t('select_placeholder') }}</option>
                             {% for ta in teacher_assignments %}
                                 <option value="{{ ta.id }}">{{ ta.class_name }} → {{ ta.subject_name }}</option>
                             {% endfor %}
                         </select>
                     </div>
                     <div class="form-group">
-                        <label>课代表（学生）</label>
+                        <label>{{ t('rep_student_label') }}</label>
                         <select name="rep_id" required>
-                            <option value="">选择...</option>
+                            <option value="">{{ t('select_placeholder') }}</option>
                             {% for s in students %}
                                 <option value="{{ s.id }}">{{ s.name }} ({{ s.username }})</option>
                             {% endfor %}
                         </select>
                     </div>
                     <div class="form-group">
-                        <button type="submit" class="btn btn-purple">指派课代表</button>
+                        <button type="submit" class="btn btn-purple">{{ t('assign_rep_btn') }}</button>
                     </div>
                 </div>
             </form>
@@ -158,17 +159,17 @@
 
         <!-- 已指派列表 -->
         <div class="card">
-            <h3>✅ 已指派的课代表</h3>
+            <h3>{{ t('assigned_rep_title') }}</h3>
             {% if teacher_assignments %}
                 {% for ta in teacher_assignments %}
                     <span class="assign-tag">
                         {{ ta.class_name }} ({{ ta.subject_name }}) →
                         <strong>{{ ta.teacher_name }}</strong>
-                        <a href="/admin/rep/remove/{{ ta.id }}" class="remove" onclick="return confirm('确定移除？')">×</a>
+                        <a href="/admin/rep/remove/{{ ta.id }}" class="remove" onclick="return confirm('{{ t('confirm_remove_short') }}')">×</a>
                     </span>
                 {% endfor %}
             {% else %}
-                <div style="color:#888; font-size:14px; padding:10px 0;">暂未指派课代表</div>
+                <div style="color:#888; font-size:14px; padding:10px 0;">{{ t('no_assigned_rep') }}</div>
             {% endif %}
         </div>
     </div>

@@ -1,9 +1,9 @@
 <!DOCTYPE html>
-<html lang="zh-CN">
+<html lang="{{ current_lang }}">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>{% if error_code %}{{ error_code }}{% else %}错误{% endif %} - 作业管理平台</title>
+    <title>{% if error_code %}{{ error_code }}{% else %}{{ t('error_page_title') }}{% endif %} - {{ t('app_name') }}</title>
     <style>
         * { margin: 0; padding: 0; box-sizing: border-box; }
         body {
@@ -105,44 +105,32 @@
             {% endif %}
         </div>
         <div class="error-title">
-            {% if error_code == 404 %}页面不见了 😅
-            {% elif error_code == 429 %}操作太频繁了 ⏳
-            {% elif error_code == 500 %}服务器出了点小问题 💥
-            {% elif error_code == 502 %}网关连接失败 🌐
-            {% elif error_code == 503 %}服务暂时不可用 🔧
-            {% else %}出了点小问题
+            {% if error_code == 404 %}{{ t('error_404_title') }}
+            {% elif error_code == 429 %}{{ t('error_429_title') }}
+            {% elif error_code == 500 %}{{ t('error_500_title') }}
+            {% elif error_code == 502 %}{{ t('error_502_title') }}
+            {% elif error_code == 503 %}{{ t('error_503_title') }}
+            {% else %}{{ t('error_generic_title') }}
             {% endif %}
         </div>
         <div class="error-description">
-            {% if error_code == 404 %}
-                您访问的页面不存在，可能是链接有误或内容已被移除。
-            {% elif error_code == 429 %}
-                您操作太频繁了，请稍等片刻再试。
-            {% elif error_code == 500 %}
-                服务器内部发生错误，技术员已经收到通知。
-            {% elif error_code == 502 %}
-                网关或代理服务器收到无效响应，请稍后重试。
-            {% elif error_code == 503 %}
-                服务器正在维护或过载，请稍后再试。
-            {% else %}
-                {{ error_message or '发生了未知错误，请稍后重试。' }}
-            {% endif %}
+            {{ error_message or t('error_generic_description') }}
         </div>
         <div class="error-actions">
             {% if user_logged_in %}
-                <a href="{{ home_url or '/page' }}" class="btn btn-primary">🏠 返回{{ home_label or '首页' }}</a>
-                <a href="/logout" class="btn btn-logout">🚪 登出</a>
+                <a href="{{ home_url or '/page' }}" class="btn btn-primary">🏠 {{ t('back_to_home') }}</a>
+                <a href="/logout" class="btn btn-logout">🚪 {{ t('logout') }}</a>
             {% else %}
-                <a href="/" class="btn btn-primary">🏠 返回登录页面</a>
+                <a href="/" class="btn btn-primary">🏠 {{ t('back_to_login') }}</a>
             {% endif %}
         </div>
         <div class="help-links">
-            <a href="javascript:location.reload()">🔄 刷新重试</a>
+            <a href="javascript:location.reload()">🔄 {{ t('retry_refresh') }}</a>
             <span class="divider">|</span>
-            <a href="/">📚 首页</a>
+            <a href="/">📚 {{ t('home_label') }}</a>
         </div>
         <div class="error-footer">
-            📚 作业管理平台 · {% if error_code %}HTTP {{ error_code }}{% else %}错误页面{% endif %}
+            📚 {{ t('app_name') }} · {% if error_code %}HTTP {{ error_code }}{% else %}{{ t('error_page_title') }}{% endif %}
         </div>
     </div>
 </body>

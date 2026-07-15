@@ -1,9 +1,9 @@
 <!DOCTYPE html>
-<html lang="zh-CN">
+<html lang="{{ current_lang }}">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>📂 全部异常 - 系统监控</title>
+    <title>{{ t('all_errors_title') }} - {{ t('monitor_title') }}</title>
     <style>
         * { margin: 0; padding: 0; box-sizing: border-box; }
         body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Arial, sans-serif; background: #f0f2f5; padding: 20px; }
@@ -43,14 +43,14 @@
     <div class="container">
         <div class="header">
             <div>
-                <h1>📂 全部异常</h1>
-                <span>包含未解决与已解决异常</span>
+                <h1>{{ t('all_errors_title') }}</h1>
+                <span>{{ t('all_errors_subtitle') }}</span>
             </div>
             <div class="time">
                 🕐 {{ now }}
-                <a href="/monitor" style="color:white;">🔙 返回监控</a>
-                <a href="/admin" style="color:white;">🏠 管理后台</a>
-                <a href="/logout" style="color:white;">退出</a>
+                <a href="/monitor" style="color:white;">🔙 {{ t('back_to_monitor') }}</a>
+                <a href="/admin" style="color:white;">🏠 {{ t('admin_title') }}</a>
+                <a href="/logout" style="color:white;">{{ t('logout') }}</a>
             </div>
         </div>
 
@@ -66,15 +66,15 @@
 
         <div class="card">
             <div class="card-header">
-                全部异常列表
-                <span class="badge badge-gray">共 {{ errors|length }} 条</span>
+                {{ t('all_errors_list_title') }}
+                <span class="badge badge-gray">{{ t('total_label') }} {{ errors|length }} {{ t('items') }}</span>
             </div>
             <div class="card-body">
                 {% if errors %}
                     <form method="POST" action="/monitor/errors/batch">
                         <div class="action-bar">
-                            <button type="submit" name="action" value="resolve" class="btn btn-green">标记已解决</button>
-                            <button type="submit" name="action" value="delete" class="btn btn-red">删除选中</button>
+                            <button type="submit" name="action" value="resolve" class="btn btn-green">{{ t('mark_resolved') }}</button>
+                            <button type="submit" name="action" value="delete" class="btn btn-red">{{ t('delete_selected') }}</button>
                         </div>
                         {% for err in errors %}
                             <div class="log-item">
@@ -87,14 +87,14 @@
                                     </div>
                                 </label>
                                 <div style="text-align:right; display:flex; flex-direction:column; gap:6px;">
-                                    <a class="btn btn-gray" href="/resolve_error/{{ err.id }}?next=/monitor/errors">标记已解决</a>
-                                    <a class="btn btn-red" href="/monitor/errors/batch?error_ids={{ err.id }}&action=delete" onclick="event.preventDefault(); this.closest('form').querySelector('input[name=error_ids][value=\'{{ err.id }}\']').checked = true; this.closest('form').submit();">删除</a>
+                                    <a class="btn btn-gray" href="/resolve_error/{{ err.id }}?next=/monitor/errors">{{ t('mark_resolved') }}</a>
+                                    <a class="btn btn-red" href="/monitor/errors/batch?error_ids={{ err.id }}&action=delete" onclick="event.preventDefault(); this.closest('form').querySelector('input[name=error_ids][value=\'{{ err.id }}\']').checked = true; this.closest('form').submit();">{{ t('delete') }}</a>
                                 </div>
                             </div>
                         {% endfor %}
                     </form>
                 {% else %}
-                    <div class="empty-state">暂无异常记录</div>
+                    <div class="empty-state">{{ t('no_errors') }}</div>
                 {% endif %}
             </div>
         </div>
